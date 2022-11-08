@@ -146,32 +146,39 @@ func macandencrypt(key []byte, AC []byte) (ACto []byte) {
 	r := userlib.RandomBytes(16)
 	ACpointer := userlib.SymEnc(AChashKey[:16], r, AC)
 	ACmacKey, err := userlib.HashKDF(key, []byte("mac"))
-	ACMAC, err := userlib.HMACEval(ACmacKey, ACpointer)
+	// print("MACKEY", ACmacKey)
+
+	ACMAC, err := userlib.HMACEval(ACmacKey[:16], ACpointer)
 	ACto = []byte(string(ACMAC) + string(ACpointer))
 	return ACto
 }
 
 func checkMAC(key []byte, ciphertext []byte, MAC []byte) (res bool, err error) {
 	macKey, err := userlib.HashKDF(key, []byte("mac"))
+	// print("MACKEY", macKey)
 	if err != nil {return false, err}
-	MACCandidate, err := userlib.HMACEval(macKey, ciphertext)
+	MACCandidate, err := userlib.HMACEval(macKey[:16], ciphertext)
+	// print(MACCandidate)
 	res = userlib.HMACEqual(MACCandidate, MAC)
+	print("herere", res)
 	return res, nil
 }
 
 func decrypt(key []byte, ciphertext []byte, MAC []byte) (decryptedFile []byte, err error) {
 	truefalse, err := checkMAC(key, ciphertext, MAC)
 	if err != nil {
+		// print("here")
 		return nil, err
 	}
 	if !truefalse {
+		// print("here2")
 		return nil, errors.New("MAC does not match ciphertext")
 	}
 	enckey, err := userlib.HashKDF(key, []byte("enc"))
 	if err != nil {
 		return nil, err
 	}
-	decryptedFile = userlib.SymDec(enckey, ciphertext)
+	decryptedFile = userlib.SymDec(enckey[:16], ciphertext)
 	return decryptedFile, nil
 	// json.Unmarshal(file, &decryptedFile)
 }
@@ -182,9 +189,11 @@ func InitUser(username string, password string) (userdataptr *User, err error) {
 	// all the user stuff
 	var userdata User
 	byteUsername := userlib.Hash([]byte(username))[:16]
+	// print(byteUsername)
 	userdata.Username = username
 	bytePassword := []byte(password)
-	key := userlib.Argon2Key(bytePassword, byteUsername, 16)
+	key := userlib.Argon2Key(bytePassword, []byte(username), 16)
+	// print(key)
 	if err != nil {
 		print(err)
 	}
@@ -225,20 +234,26 @@ func InitUser(username string, password string) (userdataptr *User, err error) {
 func GetUser(username string, password string) (userdataptr *User, err error) {
 	// var userdata User
 	// userdataptr = &userdata
+	// print(userdataptr)
 	byteUsername := userlib.Hash([]byte(username))[:16]
 	bytePassword := []byte(password)
-	key := userlib.Argon2Key(bytePassword, byteUsername, 16)
+	// print(byteUsername)
+	key := userlib.Argon2Key(bytePassword, []byte(username), 16)
+	print(key)
 	UUID := uuid.Must(uuid.FromBytes(byteUsername))
 	cipher, ok := userlib.DatastoreGet(UUID)
+	// print(cipher[64:])
 	if !ok{
 		return nil, errors.New("cannot find")
 	}
-	decFile, err := decrypt(key, cipher[:64], cipher[64:])
+	decFile, err := decrypt(key, cipher[64:], cipher[:64])
 	if err != nil{
+		// print("here")
 		return nil, err
 	}
 	var userdata User
 	err = json.Unmarshal(decFile, &userdata)
+	// print(&userdata)
 
 	return &userdata, nil
 }
