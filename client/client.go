@@ -157,6 +157,9 @@ func checkMAC(key []byte, ciphertext []byte, MAC []byte) (res bool, err error) {
 		return false, err
 	}
 	MACCandidate, err := userlib.HMACEval(macKey, ciphertext)
+	if err != nil {
+		return false, err
+	}
 	res = userlib.HMACEqual(MACCandidate, MAC)
 	return res, nil
 }
