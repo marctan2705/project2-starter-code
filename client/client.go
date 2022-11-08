@@ -149,6 +149,12 @@ func macandencrypt(key []byte, AC []byte) (ACto []byte) {
 	return ACto
 }
 
+func CheckMAC(key []byte, ciphertext []byte, MAC []byte) {
+	macKey, err := userlib.HashKDF(key, []byte("mac"))
+	if err != nil { return }
+	MACCandidate := userlib.HMACEval(macKey, ciphertext)
+	return userlib.HMACEqual(MACCandidate, MAC)
+}
 
 // NOTE: The following methods have toy (insecure!) implementations.
 
