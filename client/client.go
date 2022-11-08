@@ -149,18 +149,16 @@ func macandencrypt(key []byte, AC []byte) (ACto []byte) {
 	return ACto
 }
 
+
 // NOTE: The following methods have toy (insecure!) implementations.
 
 func InitUser(username string, password string) (userdataptr *User, err error) {
 	// all the user stuff
 	var userdata User
-	for(len(username) < 16){
-		username = username + "0"
-	}
+	byteUsername := userlib.Hash([]byte(username))[:16]
 	userdata.Username = username
 	bytePassword := []byte(password)
-	byteUsername := []byte(username)
-	key := userlib.Argon2Key(bytePassword, byteUsername, 16)?
+	key := userlib.Argon2Key(bytePassword, byteUsername, 16)
 	if(err != nil){
 		print(err)
 	}
