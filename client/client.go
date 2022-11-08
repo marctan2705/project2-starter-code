@@ -99,22 +99,104 @@ func someUsefulThings() {
 // This is the type definition for the User struct.
 // A Go struct is like a Python or Java class - it can have attributes
 // (e.g. like the Username attribute) and methods (e.g. like the StoreFile method below).
-type User struct {
-	Username string
+type User struct { //encrypted
 
-	// You can add other attributes here if you want! But note that in order for attributes to
-	// be included when this struct is serialized to/from JSON, they must be capitalized.
-	// On the flipside, if you have an attribute that you want to be able to access from
-	// this struct's methods, but you DON'T want that value to be included in the serialized value
-	// of this struct that's stored in datastore, then you can use a "private" variable (e.g. one that
-	// begins with a lowercase letter).
+	Username string;
+	Argon2Key []byte; // Argon2Key	
+	PKEDecKey userlib.PKEDecKey; // Private key for public key encryption
+	DSSignKey userlib.DSSignKey;// Private key for signing
+	AccessControlUUID uuid.UUID; // AccessControlUUID points to AccessControl struct
+	ACKey []byte
+	// which contains FileMap
+}
+
+type keyStruct struct {
+	key []byte;
+	fileUUID uuid.UUID;
+}
+
+type AccessControl struct { // this struct is encrypted
+	FileMap map[string][]byte; // dictionary of pointers to file blocks (keys of maps == fileName)
+	KeyStructMap map[string][]byte; // dictionary of KeyStructs for encrypted file blocks
+}
+
+type FileContent struct { // this struct is encrypted
+	KeyMap map[string][]byte; // keys to decrypt and mac contentblocks in contentList
+	// ContentList: []byte; // array of pointers to content blocks
+	UserMap map[string][]string; // map of (parent: [child1, child2, ...])
+	lastBlock uuid.UUID;
+	// MACMap: []byte // array of MACs for ContentBlocks in ContentList (MACs now stored in bytestring)
+	}
+
+type ContentBlock struct{
+	ENContent []byte; // content to be decrypted to KNOWLEDGE
+	prevBlock uuid.UUID;
+}
+
+type InvitationBlock struct{
+	KeyStructUUID uuid.UUID;
+}
+
+//helper functions
+func macandencrypt(key []byte, AC []byte) (ACto []byte) {
+	AChashKey, err := userlib.HashKDF(key, []byte("enc"))
+	print(err)
+	r := userlib.RandomBytes(16)
+	ACpointer := userlib.SymEnc(AChashKey[:16], r, AC)
+	ACmacKey, err := userlib.HashKDF(key, []byte("mac"))
+	ACMAC, err := userlib.HMACEval(ACmacKey, ACpointer)
+	ACto = []byte(string(ACMAC) + string(ACpointer))
+	return ACto
 }
 
 // NOTE: The following methods have toy (insecure!) implementations.
 
 func InitUser(username string, password string) (userdataptr *User, err error) {
+	// all the user stuff
 	var userdata User
+	for(len(username) < 16){
+		username = username + "0"
+	}
 	userdata.Username = username
+	bytePassword := []byte(password)
+	byteUsername := []byte(username)
+	key := userlib.Argon2Key(bytePassword, byteUsername, 16)?
+	if(err != nil){
+		print(err)
+	}
+	userdata.Argon2Key = key
+	DSSignKey, DSVerifyKey, err := userlib.DSKeyGen()
+	UUID := uuid.Must(uuid.FromBytes(byteUsername))
+	userdata.DSSignKey = DSSignKey
+	PKEEncKey, PKEDecKey, err := userlib.PKEKeyGen()
+	if(err != nil){
+		print(err)
+	}
+	userdata.PKEDecKey = PKEDecKey
+	userlib.KeystoreSet(username + " PKEEncKey", PKEEncKey)
+	userlib.KeystoreSet(username + " DSVerifyKey", DSVerifyKey)
+
+	// lets create access control stuff
+	ACUUID := uuid.New()
+	var AC AccessControl
+	ACkey := userlib.RandomBytes(16)
+	ACenc, err := json.Marshal(AC)
+	print(err)
+	ACto := macandencrypt(ACkey, ACenc)
+	userlib.DatastoreSet(ACUUID, ACto)
+
+	// adding access control to the user
+	userdata.AccessControlUUID = ACUUID
+	userdata.ACKey = ACkey
+
+	//saving the user
+	userenc, err := json.Marshal(userdata)
+	print(err)
+	userto := macandencrypt(key, userenc)
+	userlib.DatastoreSet(UUID, userto)
+
+
+
 	return &userdata, nil
 }
 
