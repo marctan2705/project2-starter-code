@@ -127,7 +127,7 @@ type FileContent struct { // this struct is encrypted
 	lastBlock    uuid.UUID           // UUID to last block
 	lastBlockKey []byte              // key of last block
 	// MACMap: []byte // array of MACs for ContentBlocks in ContentList (MACs now stored in bytestring)
-	}
+}
 
 type ContentBlock struct {
 	ENContent    []byte // content to be decrypted to KNOWLEDGE
@@ -142,7 +142,9 @@ type InvitationBlock struct {
 // helper functions
 func macandencrypt(key []byte, AC []byte) (ACto []byte) {
 	AChashKey, err := userlib.HashKDF(key, []byte("enc"))
-	print(err)
+	if err != nil {
+		return nil
+	}
 	r := userlib.RandomBytes(16)
 	ACpointer := userlib.SymEnc(AChashKey[:16], r, AC)
 	ACmacKey, err := userlib.HashKDF(key, []byte("mac"))
@@ -156,25 +158,24 @@ func macandencrypt(key []byte, AC []byte) (ACto []byte) {
 func checkMAC(key []byte, ciphertext []byte, MAC []byte) (res bool, err error) {
 	macKey, err := userlib.HashKDF(key, []byte("mac"))
 	// print("MACKEY", macKey)
-	if err != nil {return false, err}
+	if err != nil {
+		return false, err
+	}
 	MACCandidate, err := userlib.HMACEval(macKey[:16], ciphertext)
 	// print(MACCandidate)
 	if err != nil {
 		return false, err
 	}
 	res = userlib.HMACEqual(MACCandidate, MAC)
-	print("herere", res)
 	return res, nil
 }
 
 func decrypt(key []byte, ciphertext []byte, MAC []byte) (decryptedFile []byte, err error) {
 	truefalse, err := checkMAC(key, ciphertext, MAC)
 	if err != nil {
-		// print("here")
 		return nil, err
 	}
 	if !truefalse {
-		// print("here2")
 		return nil, errors.New("MAC does not match ciphertext")
 	}
 	enckey, err := userlib.HashKDF(key, []byte("enc"))
@@ -183,7 +184,6 @@ func decrypt(key []byte, ciphertext []byte, MAC []byte) (decryptedFile []byte, e
 	}
 	decryptedFile = userlib.SymDec(enckey[:16], ciphertext)
 	return decryptedFile, nil
-	// json.Unmarshal(file, &decryptedFile)
 }
 
 // NOTE: The following methods have toy (insecure!) implementations.
@@ -192,22 +192,24 @@ func InitUser(username string, password string) (userdataptr *User, err error) {
 	// all the user stuff
 	var userdata User
 	byteUsername := userlib.Hash([]byte(username))[:16]
-	// print(byteUsername)
 	userdata.Username = username
 	bytePassword := []byte(password)
 	key := userlib.Argon2Key(bytePassword, []byte(username), 16)
-	// print(key)
 	if err != nil {
-		print(err)
+		return nil, err
 	}
 	userdata.Argon2Key = key
 	DSSignKey, DSVerifyKey, err := userlib.DSKeyGen()
+	if err != nil {
+		return nil, err
+	}
 	UUID := uuid.Must(uuid.FromBytes(byteUsername))
 	userdata.DSSignKey = DSSignKey
 	PKEEncKey, PKEDecKey, err := userlib.PKEKeyGen()
 	if err != nil {
-		print(err)
+		return nil, err
 	}
+
 	userdata.PKEDecKey = PKEDecKey
 	userlib.KeystoreSet(username+" PKEEncKey", PKEEncKey)
 	userlib.KeystoreSet(username+" DSVerifyKey", DSVerifyKey)
@@ -217,7 +219,9 @@ func InitUser(username string, password string) (userdataptr *User, err error) {
 	var AC AccessControl
 	ACkey := userlib.RandomBytes(16)
 	ACenc, err := json.Marshal(AC)
-	print(err)
+	if err != nil {
+		return nil, err
+	}
 	ACto := macandencrypt(ACkey, ACenc)
 	userlib.DatastoreSet(ACUUID, ACto)
 
@@ -227,7 +231,9 @@ func InitUser(username string, password string) (userdataptr *User, err error) {
 
 	//saving the user
 	userenc, err := json.Marshal(userdata)
-	print(err)
+	if err != nil {
+		return nil, err
+	}
 	userto := macandencrypt(key, userenc)
 	userlib.DatastoreSet(UUID, userto)
 
@@ -240,23 +246,22 @@ func GetUser(username string, password string) (userdataptr *User, err error) {
 	// print(userdataptr)
 	byteUsername := userlib.Hash([]byte(username))[:16]
 	bytePassword := []byte(password)
-	// print(byteUsername)
 	key := userlib.Argon2Key(bytePassword, []byte(username), 16)
-	print(key)
 	UUID := uuid.Must(uuid.FromBytes(byteUsername))
 	cipher, ok := userlib.DatastoreGet(UUID)
 	// print(cipher[64:])
-	if !ok{
+	if !ok {
 		return nil, errors.New("cannot find")
 	}
 	decFile, err := decrypt(key, cipher[64:], cipher[:64])
-	if err != nil{
-		// print("here")
+	if err != nil {
 		return nil, err
 	}
 	var userdata User
 	err = json.Unmarshal(decFile, &userdata)
-	// print(&userdata)
+	if err != nil {
+		return nil, err
+	}
 
 	return &userdata, nil
 }
