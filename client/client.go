@@ -101,43 +101,45 @@ func someUsefulThings() {
 // (e.g. like the Username attribute) and methods (e.g. like the StoreFile method below).
 type User struct { //encrypted
 
-	Username string;
-	Argon2Key []byte; // Argon2Key	
-	PKEDecKey userlib.PKEDecKey; // Private key for public key encryption
-	DSSignKey userlib.DSSignKey;// Private key for signing
-	AccessControlUUID uuid.UUID; // AccessControlUUID points to AccessControl struct
-	ACKey []byte
+	Username          string
+	Argon2Key         []byte            // Argon2Key
+	PKEDecKey         userlib.PKEDecKey // Private key for public key encryption
+	DSSignKey         userlib.DSSignKey // Private key for signing
+	AccessControlUUID uuid.UUID         // AccessControlUUID points to AccessControl struct
+	ACKey             []byte
 	// which contains FileMap
 }
 
 type keyStruct struct {
-	key []byte;
-	fileUUID uuid.UUID;
+	key      []byte
+	fileUUID uuid.UUID
 }
 
 type AccessControl struct { // this struct is encrypted
-	FileMap map[string][]byte; // dictionary of pointers to file blocks (keys of maps == fileName)
-	KeyStructMap map[string][]byte; // dictionary of KeyStructs for encrypted file blocks
+	FileMap      map[string][]byte // dictionary of pointers to file blocks (keys of maps == fileName)
+	KeyStructMap map[string][]byte // dictionary of KeyStructs for encrypted file blocks
 }
 
 type FileContent struct { // this struct is encrypted
-	KeyMap map[string][]byte; // keys to decrypt and mac contentblocks in contentList
+	// KeyMap map[string][]byte; // keys to decrypt and mac contentblocks in contentList
 	// ContentList: []byte; // array of pointers to content blocks
-	UserMap map[string][]string; // map of (parent: [child1, child2, ...])
-	lastBlock uuid.UUID;
+	UserMap      map[string][]string // map of (parent: [child1, child2, ...])
+	lastBlock    uuid.UUID           // UUID to last block
+	lastBlockKey []byte              // key of last block
 	// MACMap: []byte // array of MACs for ContentBlocks in ContentList (MACs now stored in bytestring)
-	}
-
-type ContentBlock struct{
-	ENContent []byte; // content to be decrypted to KNOWLEDGE
-	prevBlock uuid.UUID;
 }
 
-type InvitationBlock struct{
-	KeyStructUUID uuid.UUID;
+type ContentBlock struct {
+	ENContent    []byte // content to be decrypted to KNOWLEDGE
+	prevBlock    uuid.UUID
+	prevBlockKey []byte
 }
 
-//helper functions
+type InvitationBlock struct {
+	KeyStructUUID uuid.UUID
+}
+
+// helper functions
 func macandencrypt(key []byte, AC []byte) (ACto []byte) {
 	AChashKey, err := userlib.HashKDF(key, []byte("enc"))
 	print(err)
@@ -149,29 +151,32 @@ func macandencrypt(key []byte, AC []byte) (ACto []byte) {
 	return ACto
 }
 
-func checkMAC(key []byte, ciphertext []byte, MAC []byte) (res bool, err error){
+func checkMAC(key []byte, ciphertext []byte, MAC []byte) (res bool, err error) {
 	macKey, err := userlib.HashKDF(key, []byte("mac"))
-	if err != nil {return nil, err}
+	if err != nil {
+		return false, err
+	}
 	MACCandidate, err := userlib.HMACEval(macKey, ciphertext)
 	res = userlib.HMACEqual(MACCandidate, MAC)
 	return res, nil
 }
 
-func decrypt(key []byte, ciphertext []byte, MAC []byte)(decryptedFile []byte, err error){
+func decrypt(key []byte, ciphertext []byte, MAC []byte) (decryptedFile []byte, err error) {
 	truefalse, err := checkMAC(key, ciphertext, MAC)
-	if err != nil {return nil, err}
-	if(!truefalse){
+	if err != nil {
+		return nil, err
+	}
+	if !truefalse {
 		return nil, errors.New("MAC does not match ciphertext")
 	}
 	enckey, err := userlib.HashKDF(key, []byte("enc"))
-	if(err != nil){
+	if err != nil {
 		return nil, err
 	}
 	decryptedFile = userlib.SymDec(enckey, ciphertext)
 	return decryptedFile, nil
 	// json.Unmarshal(file, &decryptedFile)
 }
-
 
 // NOTE: The following methods have toy (insecure!) implementations.
 
@@ -182,7 +187,7 @@ func InitUser(username string, password string) (userdataptr *User, err error) {
 	userdata.Username = username
 	bytePassword := []byte(password)
 	key := userlib.Argon2Key(bytePassword, byteUsername, 16)
-	if(err != nil){
+	if err != nil {
 		print(err)
 	}
 	userdata.Argon2Key = key
@@ -190,12 +195,12 @@ func InitUser(username string, password string) (userdataptr *User, err error) {
 	UUID := uuid.Must(uuid.FromBytes(byteUsername))
 	userdata.DSSignKey = DSSignKey
 	PKEEncKey, PKEDecKey, err := userlib.PKEKeyGen()
-	if(err != nil){
+	if err != nil {
 		print(err)
 	}
 	userdata.PKEDecKey = PKEDecKey
-	userlib.KeystoreSet(username + " PKEEncKey", PKEEncKey)
-	userlib.KeystoreSet(username + " DSVerifyKey", DSVerifyKey)
+	userlib.KeystoreSet(username+" PKEEncKey", PKEEncKey)
+	userlib.KeystoreSet(username+" DSVerifyKey", DSVerifyKey)
 
 	// lets create access control stuff
 	ACUUID := uuid.New()
@@ -215,8 +220,6 @@ func InitUser(username string, password string) (userdataptr *User, err error) {
 	print(err)
 	userto := macandencrypt(key, userenc)
 	userlib.DatastoreSet(UUID, userto)
-
-
 
 	return &userdata, nil
 }
