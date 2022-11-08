@@ -195,6 +195,7 @@ func InitUser(username string, password string) (userdataptr *User, err error) {
 	userdata.Username = username
 	bytePassword := []byte(password)
 	key := userlib.Argon2Key(bytePassword, []byte(username), 16)
+
 	if err != nil {
 		return nil, err
 	}
