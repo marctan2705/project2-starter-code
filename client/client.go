@@ -121,7 +121,7 @@ type AccessControl struct { // this struct is encrypted
 }
 
 type FileContent struct { // this struct is encrypted
-	KeyMap map[string][]byte; // keys to decrypt and mac contentblocks in contentList
+	// KeyMap map[string][]byte; // keys to decrypt and mac contentblocks in contentList
 	// ContentList: []byte; // array of pointers to content blocks
 	UserMap map[string][]string; // map of (parent: [child1, child2, ...])
 	lastBlock uuid.UUID;
@@ -131,6 +131,7 @@ type FileContent struct { // this struct is encrypted
 type ContentBlock struct{
 	ENContent []byte; // content to be decrypted to KNOWLEDGE
 	prevBlock uuid.UUID;
+	prevkey []byte;
 }
 
 type InvitationBlock struct{
@@ -151,7 +152,7 @@ func macandencrypt(key []byte, AC []byte) (ACto []byte) {
 
 func checkMAC(key []byte, ciphertext []byte, MAC []byte) (res bool, err error){
 	macKey, err := userlib.HashKDF(key, []byte("mac"))
-	if err != nil {return nil, err}
+	if err != nil {return false, err}
 	MACCandidate, err := userlib.HMACEval(macKey, ciphertext)
 	res = userlib.HMACEqual(MACCandidate, MAC)
 	return res, nil
@@ -222,9 +223,24 @@ func InitUser(username string, password string) (userdataptr *User, err error) {
 }
 
 func GetUser(username string, password string) (userdataptr *User, err error) {
+	// var userdata User
+	// userdataptr = &userdata
+	byteUsername := userlib.Hash([]byte(username))[:16]
+	bytePassword := []byte(password)
+	key := userlib.Argon2Key(bytePassword, byteUsername, 16)
+	UUID := uuid.Must(uuid.FromBytes(byteUsername))
+	cipher, ok := userlib.DatastoreGet(UUID)
+	if !ok{
+		return nil, errors.New("cannot find")
+	}
+	decFile, err := decrypt(key, cipher[:64], cipher[64:])
+	if err != nil{
+		return nil, err
+	}
 	var userdata User
-	userdataptr = &userdata
-	return userdataptr, nil
+	err = json.Unmarshal(decFile, &userdata)
+
+	return &userdata, nil
 }
 
 func (userdata *User) StoreFile(filename string, content []byte) (err error) {
