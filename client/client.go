@@ -149,8 +149,18 @@ func macandencrypt(key []byte, AC []byte) (ACto []byte) {
 	return ACto
 }
 
+func checkMAC(key []byte, ciphertext []byte, MAC []byte) (res bool, err error){
+	macKey, err := userlib.HashKDF(key, []byte("mac"))
+	if err != nil {return nil, err}
+	MACCandidate, err := userlib.HMACEval(macKey, ciphertext)
+	res = userlib.HMACEqual(MACCandidate, MAC)
+	return res, nil
+}
+
 func decrypt(key []byte, ciphertext []byte, MAC []byte)(decryptedFile []byte, err error){
-	if(!checkMAC(key, ciphertext, MAC)){
+	truefalse, err := checkMAC(key, ciphertext, MAC)
+	if err != nil {return nil, err}
+	if(!truefalse){
 		return nil, errors.New("MAC does not match ciphertext")
 	}
 	enckey, err := userlib.HashKDF(key, []byte("enc"))
@@ -160,8 +170,8 @@ func decrypt(key []byte, ciphertext []byte, MAC []byte)(decryptedFile []byte, er
 	decryptedFile = userlib.SymDec(enckey, ciphertext)
 	return decryptedFile, nil
 	// json.Unmarshal(file, &decryptedFile)
-
 }
+
 
 // NOTE: The following methods have toy (insecure!) implementations.
 
