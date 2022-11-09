@@ -111,32 +111,39 @@ type User struct { //encrypted
 }
 
 type keyStruct struct {
-	key      []byte
-	fileUUID uuid.UUID
+	Key      []byte
+	FileUUID uuid.UUID
 }
 
+
 type AccessControl struct { // this struct is encrypted
-	FileMap      map[string][]byte // dictionary of pointers to file blocks (keys of maps == fileName)
-	KeyStructMap map[string][]byte // dictionary of KeyStructs for encrypted file blocks
+	KeyStructUUIDMap map[string]uuid.UUID // dictionary of pointers to keystruct (keys of maps == fileName)
+	KeyMap map[string][]byte // dictionary of keys used for encrypted keystruct
+	OwnedFiles map[string]string // see which files you own
+	InvitationNameMap map[string][]string //filename : username
+	InvitationAccessMap map[string]uuid.UUID // filename-username : uuid of file
+	InvitationKeyMap map[string][]byte //filename-username : key
+
 }
 
 type FileContent struct { // this struct is encrypted
 	// KeyMap map[string][]byte; // keys to decrypt and mac contentblocks in contentList
 	// ContentList: []byte; // array of pointers to content blocks
 	UserMap      map[string][]string // map of (parent: [child1, child2, ...])
-	lastBlock    uuid.UUID           // UUID to last block
-	lastBlockKey []byte              // key of last block
+	LastBlock    uuid.UUID           // UUID to last block
+	LastBlockKey []byte              // key of last block
 	// MACMap: []byte // array of MACs for ContentBlocks in ContentList (MACs now stored in bytestring)
 }
 
 type ContentBlock struct {
 	ENContent    []byte // content to be decrypted to KNOWLEDGE
-	prevBlock    uuid.UUID
-	prevBlockKey []byte
+	PrevBlock    []byte
+	PrevBlockKey []byte
 }
 
 type InvitationBlock struct {
 	KeyStructUUID uuid.UUID
+	key []byte
 }
 
 // helper functions
@@ -152,6 +159,19 @@ func macandencrypt(key []byte, AC []byte) (ACto []byte) {
 
 	ACMAC, err := userlib.HMACEval(ACmacKey[:16], ACpointer)
 	ACto = []byte(string(ACMAC) + string(ACpointer))
+	return ACto
+}
+
+func signandencrypt(enckey userlib.PKEEncKey, signkey userlib.DSSignKey, AC []byte) (ACto []byte) {
+	cipher, err := userlib.PKEEnc(enckey, AC)
+	if err != nil {
+		return nil
+	}
+	signature, err := userlib.DSSign(signkey, cipher)
+	if err != nil {
+		return nil
+	}
+	ACto = []byte(string(signature) + string(cipher))
 	return ACto
 }
 
@@ -218,6 +238,13 @@ func InitUser(username string, password string) (userdataptr *User, err error) {
 	// lets create access control stuff
 	ACUUID := uuid.New()
 	var AC AccessControl
+	AC.KeyStructUUIDMap = make(map[string]uuid.UUID)
+	AC.KeyMap = make(map[string][]byte)
+	// AC.InvitationMap = make(map[FileUserKey][]byte)
+	AC.OwnedFiles = make(map[string]string)
+	AC.InvitationNameMap = make(map[string][]string) //filename : username
+	AC.InvitationAccessMap = make(map[string]uuid.UUID) // filename-username : uuid of file
+	AC.InvitationKeyMap = make(map[string][]byte) //filename-username : key
 	ACkey := userlib.RandomBytes(16)
 	ACenc, err := json.Marshal(AC)
 	if err != nil {
@@ -268,16 +295,103 @@ func GetUser(username string, password string) (userdataptr *User, err error) {
 }
 
 func (userdata *User) StoreFile(filename string, content []byte) (err error) {
-	storageKey, err := uuid.FromBytes(userlib.Hash([]byte(filename + userdata.Username))[:16])
+	// storageKey, err := uuid.FromBytes(userlib.Hash([]byte(filename + userdata.Username))[:16])
+	// if err != nil {
+	// 	return err
+	// }
+	// contentBytes, err := json.Marshal(content)
+	// if err != nil {
+	// 	return err
+	// }
+	// userlib.DatastoreSet(storageKey, contentBytes)
+
+	//Fetch AC
+
+	ACUUID := userdata.AccessControlUUID
+	ACenc, ok := userlib.DatastoreGet(ACUUID)
+	if !ok {
+		return errors.New("Not found")
+	}
+	ACdec, err := decrypt(userdata.ACKey, ACenc[64:], ACenc[:64])
 	if err != nil {
+		return nil
+	}
+	var AC AccessControl
+	err = json.Unmarshal(ACdec, &AC)
+	if err != nil {
+		return nil
+	}
+	filekey := userlib.RandomBytes(16)
+	fileuuid := uuid.New()
+	if keyStructUUID, ok := AC.KeyStructUUIDMap[filename]; ok{
+		keyStructKey := AC.KeyMap[filename]
+		keyStructd, ok := userlib.DatastoreGet(keyStructUUID)
+		if !ok { return errors.New("not found") }
+		keystructdec, err := decrypt(keyStructKey, keyStructd[64:], keyStructd[:64])
+		if err != nil { return err }
+		var keydata keyStruct
+		json.Unmarshal(keystructdec, &keydata)
+		fileuuid = keydata.FileUUID
+		filekey = keydata.Key
+	}
+
+	//create contentBlock
+	contentKey := userlib.RandomBytes(16)
+	var block ContentBlock
+	block.ENContent = content
+	block.PrevBlock = nil
+	block.PrevBlockKey = nil
+	contentenc, err := json.Marshal(block)
+	if err != nil{return err}
+	contentUUID := uuid.New()
+	contentto := macandencrypt(contentKey, contentenc)
+	userlib.DatastoreSet(contentUUID, contentto)
+
+	//create FileContent Block
+	var file FileContent
+	file.UserMap = make(map[string][]string)
+	file.UserMap[userdata.Username] = make([]string, 0)
+	file.LastBlock = contentUUID
+	file.LastBlockKey = contentKey
+
+	fileenc, err := json.Marshal(file)
+	if err != nil{
 		return err
 	}
-	contentBytes, err := json.Marshal(content)
-	if err != nil {
+	fileto := macandencrypt(filekey, fileenc)
+	userlib.DatastoreSet(fileuuid, fileto)
+
+	if keyStructUUID, ok := AC.KeyStructUUIDMap[filename]; ok{ 
+		fmt.Print(keyStructUUID)
+		return nil
+	}
+
+	//Create Keystruct
+	keystructuuid, err := uuid.FromBytes(userlib.Hash([]byte(filename + userdata.Username))[:16]) //owner -> userto share -> filename
+	if err != nil{return err}
+	var magicbox keyStruct
+	magicbox.FileUUID = fileuuid
+	magicbox.Key = filekey
+	magicboxenc, err := json.Marshal(magicbox)
+	if err != nil{
 		return err
 	}
-	userlib.DatastoreSet(storageKey, contentBytes)
-	return
+	magicboxkey := userlib.RandomBytes(16)
+	magicboxto := macandencrypt(magicboxkey, magicboxenc)
+	userlib.DatastoreSet(keystructuuid, magicboxto)
+
+	//put into AC
+	AC.OwnedFiles[filename] = ""
+	AC.KeyStructUUIDMap[filename] = keystructuuid
+	AC.KeyMap[filename] = magicboxkey
+	AC.InvitationNameMap[filename] = make([]string, 0)
+	ACenc, err = json.Marshal(AC)
+	if err != nil {
+		return nil
+	}
+	ACto := macandencrypt(userdata.ACKey, ACenc)
+	userlib.DatastoreSet(ACUUID, ACto)
+	return nil
 }
 
 func (userdata *User) AppendToFile(filename string, content []byte) error {
