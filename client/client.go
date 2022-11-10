@@ -127,9 +127,9 @@ type AccessControl struct { // this struct is encrypted
 type FileContent struct { // this struct is encrypted
 	// KeyMap map[string][]byte; // keys to decrypt and mac contentblocks in contentList
 	// ContentList: []byte; // array of pointers to content blocks
-	UserMap      map[string][]string // map of (parent: [child1, child2, ...])
-	LastBlock    uuid.UUID           // UUID to last block
-	LastBlockKey []byte              // key of last block
+	// UserMap      map[string][]string // map of (parent: [child1, child2, ...])
+	LastBlock    uuid.UUID // UUID to last block
+	LastBlockKey []byte    // key of last block
 	// MACMap: []byte // array of MACs for ContentBlocks in ContentList (MACs now stored in bytestring)
 }
 
@@ -353,8 +353,8 @@ func (userdata *User) StoreFile(filename string, content []byte) (err error) {
 
 	//create FileContent Block
 	var file FileContent
-	file.UserMap = make(map[string][]string)
-	file.UserMap[userdata.Username] = make([]string, 0)
+	//file.UserMap = make(map[string][]string)
+	//file.UserMap[userdata.Username] = make([]string, 0)
 	file.LastBlock = contentUUID
 	file.LastBlockKey = contentKey
 
