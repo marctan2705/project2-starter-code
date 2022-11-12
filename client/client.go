@@ -141,7 +141,7 @@ type ContentBlock struct {
 
 type InvitationBlock struct {
 	KeyStructUUID uuid.UUID
-	key           []byte
+	Key           []byte
 }
 
 // helper functions
