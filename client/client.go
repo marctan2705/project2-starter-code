@@ -401,23 +401,82 @@ func (userdata *User) StoreFile(filename string, content []byte) (err error) {
 }
 
 func (userdata *User) AppendToFile(filename string, content []byte) error {
-	AC, ok := userlib.DatastoreGet(userdata.AccessControlUUID)
-	if !ok{return errors.New("AC not found")}
-	var Access AccessControl
-	json.Unmarshal(AC, &Access)
-	if keyStructUUID, ok := Access.KeyStructUUIDMap[filename]; !ok{
-		print(keyStructUUID)
-		return errors.New("file not found")
+	// fetch and decrypt user's AccessControl
+	ACUUID := userdata.AccessControlUUID
+	ACenc, ok := userlib.DatastoreGet(ACUUID)
+	if !ok {
+		return errors.New("not found")
 	}
-	keyStructUUID := Access.KeyStructUUIDMap[filename]
-	keyStructenc, ok := userlib.DatastoreGet(keyStructUUID)
-	if !ok{return errors.New("keyStruct not found")}
+	ACdec, err := decrypt(userdata.ACKey, ACenc[64:], ACenc[:64])
+	if err != nil {
+		return errors.New("can't decrypt accesscontrol struct")
+	}
+	var AC AccessControl
+	err = json.Unmarshal(ACdec, &AC)
+	if err != nil {
+		return errors.New("can't unmarshal accesscontrol struct")
+	}
+	keyStructUUID, ok := AC.KeyStructUUIDMap[filename]
+	if !ok {
+		return errors.New("can't find filename in user's keystructuuidmap")
+	}
+	keyStructKey, ok := AC.KeyMap[filename]
+	if !ok {
+		return errors.New("can't find filename in user's keymap")
+	}
 
-	var keystruct keyStruct
-	json.Unmarshal(keyStructenc, &keystruct)
+	// fetch and decrypt filename's KeyStruct
+	keyStructEncryptedJSON, ok := userlib.DatastoreGet(keyStructUUID)
+	if !ok {
+		return errors.New("can't find keystruct in datastore")
+	}
+	keyStructDecryptedJSON, err := decrypt(keyStructKey, keyStructEncryptedJSON[64:], keyStructEncryptedJSON[:64])
+	if err != nil {
+		return err
+	}
+	var filenameKeyStruct keyStruct
+	err = json.Unmarshal(keyStructDecryptedJSON, &filenameKeyStruct)
+	if err != nil {
+		return err
+	}
 
-	
+	// fetch FileContent from Datastore
+	fileContentEncryptedJSON, ok := userlib.DatastoreGet(filenameKeyStruct.FileUUID)
+	if !ok {
+		return errors.New("can't find filecontent from datastore")
+	}
+	fileContentDecryptedJSON, err := decrypt(filenameKeyStruct.Key, fileContentEncryptedJSON[64:], fileContentEncryptedJSON[:64])
+	if err != nil {
+		return err
+	}
+	var fileContent FileContent
+	err = json.Unmarshal(fileContentDecryptedJSON, &fileContent)
+	if err != nil {
+		return err
+	}
 
+	//create new contentblock
+	var newcontent ContentBlock
+	newcontent.ENContent = content
+	newcontent.PrevBlock = fileContent.LastBlock
+	newcontent.PrevBlockKey = fileContent.LastBlockKey
+
+	contentkey := userlib.RandomBytes(16)
+	contentmarsh, err := json.Marshal(newcontent)
+	if err != nil{
+		return err
+	}
+	contentto := macandencrypt(contentkey, contentmarsh)
+	contentuuid := uuid.New()
+	userlib.DatastoreSet(contentuuid, contentto)
+
+	fileContent.LastBlock=contentuuid
+	fileContent.LastBlockKey = contentkey
+
+	fileContentmarsh, err := json.Marshal(fileContent)
+	if err != nil{return err}
+	filecontento := macandencrypt(filenameKeyStruct.Key, fileContentmarsh)
+	userlib.DatastoreSet(filenameKeyStruct.FileUUID, filecontento)
 
 	return nil
 }
