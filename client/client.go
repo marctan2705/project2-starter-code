@@ -121,7 +121,6 @@ type AccessControl struct { // this struct is encrypted
 	InvitationNameMap   map[string][]string  //filename : username
 	InvitationAccessMap map[string]uuid.UUID // filename-username : uuid of file
 	InvitationKeyMap    map[string][]byte    //filename-username : key
-
 }
 
 type FileContent struct { // this struct is encrypted
@@ -241,7 +240,7 @@ func InitUser(username string, password string) (userdataptr *User, err error) {
 	// AC.InvitationMap = make(map[FileUserKey][]byte)
 	AC.OwnedFiles = make(map[string]string)
 	AC.InvitationNameMap = make(map[string][]string)    //filename : username
-	AC.InvitationAccessMap = make(map[string]uuid.UUID) // filename-username : uuid of file
+	AC.InvitationAccessMap = make(map[string]uuid.UUID) // filename-username : uuid of file keystruct
 	AC.InvitationKeyMap = make(map[string][]byte)       //filename-username : key
 	ACkey := userlib.RandomBytes(16)
 	ACenc, err := json.Marshal(AC)
@@ -308,7 +307,7 @@ func (userdata *User) StoreFile(filename string, content []byte) (err error) {
 	ACUUID := userdata.AccessControlUUID
 	ACenc, ok := userlib.DatastoreGet(ACUUID)
 	if !ok {
-		return errors.New("Not found")
+		return errors.New("not found")
 	}
 	ACdec, err := decrypt(userdata.ACKey, ACenc[64:], ACenc[:64])
 	if err != nil {
@@ -481,6 +480,7 @@ func (userdata *User) LoadFile(filename string) (content []byte, err error) {
 	}
 	return []byte(output), nil
 
+	// boilerplate code
 	// storageKey, err := uuid.FromBytes(userlib.Hash([]byte(filename + userdata.Username))[:16])
 	// if err != nil {
 	// 	return nil, err
@@ -495,7 +495,124 @@ func (userdata *User) LoadFile(filename string) (content []byte, err error) {
 
 func (userdata *User) CreateInvitation(filename string, recipientUsername string) (
 	invitationPtr uuid.UUID, err error) {
-	return
+	// check if filename in user's AccessControl
+	ACUUID := userdata.AccessControlUUID
+	ACenc, ok := userlib.DatastoreGet(ACUUID)
+	if !ok {
+		return uuid.Nil, errors.New("inviter's accesscontrol not found")
+	}
+	ACdec, err := decrypt(userdata.ACKey, ACenc[64:], ACenc[:64])
+	if err != nil {
+		return uuid.Nil, errors.New("can't decrypt inviter's accesscontrol")
+	}
+	var AC AccessControl
+	err = json.Unmarshal(ACdec, &AC)
+	if err != nil {
+		return uuid.Nil, errors.New("can't unmarshal inviter's accesscontrol")
+	}
+	keyStructUUID, ok := AC.KeyStructUUIDMap[filename]
+	if !ok {
+		return uuid.Nil, errors.New("filename does not exist in inviter's ac.keystructuuidmap")
+	}
+	keyStructKey, ok := AC.KeyMap[filename]
+	if !ok {
+		return uuid.Nil, errors.New("filename does not exist in inviter's ac.keymap")
+	}
+
+	// check if recipient username in datastore
+	hashedRecipientUsername := userlib.Hash([]byte(recipientUsername))[:16]
+	recipientUUID := uuid.Must(uuid.FromBytes(hashedRecipientUsername))
+	_, ok = userlib.DatastoreGet(recipientUUID)
+	if !ok {
+		return uuid.Nil, errors.New("recipient username not in datastore")
+	}
+
+	_, ok = AC.OwnedFiles[filename]
+	caseNumber := 1
+	if ok {
+		caseNumber = 2
+	}
+	// type AccessControl struct { // this struct is encrypted
+	// 	KeyStructUUIDMap    map[string]uuid.UUID // dictionary of pointers to keystruct (keys of maps == fileName)
+	// 	KeyMap              map[string][]byte    // dictionary of keys used for encrypted keystruct
+	// 	OwnedFiles          map[string]string    // see which files you own
+	// 	InvitationNameMap   map[string][]string  //filename : username [case 2]
+	// 	InvitationAccessMap map[string]uuid.UUID // filename-username : uuid of file [case 2]
+	// 	InvitationKeyMap    map[string][]byte    //filename-username : key [case 2]
+	// }
+
+	// type keyStruct struct {
+	// 	Key      []byte
+	// 	FileUUID uuid.UUID
+	// }
+
+	// type InvitationBlock struct {
+	// 	KeyStructUUID uuid.UUID
+	// 	Key           []byte
+	// }
+
+	var invitation InvitationBlock
+	// case 1: if inviter does not own the file that is being shared
+	// just point to the existing keystruct that the inviter uses
+	if caseNumber == 1 {
+		invitation.KeyStructUUID = keyStructUUID
+		invitation.Key = keyStructKey
+	} else if caseNumber == 2 {
+		// case 2: if inviter owns the file that is being shared
+		// need to create a new keystruct for the invitee
+
+		// fetch & decrypt the keystruct owned by the inviter, & store a duplicate keystruct with new key & UUID
+		keyStructEncryptedJSON, ok := userlib.DatastoreGet(keyStructUUID)
+		if !ok {
+			return uuid.Nil, errors.New("can't find keystruct in datastore")
+		}
+		keyStructDecryptedJSON, err := decrypt(keyStructKey, keyStructEncryptedJSON[64:], keyStructEncryptedJSON[:64])
+		if err != nil {
+			return uuid.Nil, err
+		}
+		var filenameKeyStruct keyStruct
+		err = json.Unmarshal(keyStructDecryptedJSON, &filenameKeyStruct)
+		if err != nil {
+			return uuid.Nil, err
+		}
+		newKeyStructUUID := uuid.New() //random uuid instead
+		newKeyStructKey := userlib.RandomBytes(16)
+		newKeyStruct := macandencrypt(newKeyStructKey, keyStructDecryptedJSON)
+		userlib.DatastoreSet(newKeyStructUUID, newKeyStruct)
+		invitation.KeyStructUUID = newKeyStructUUID
+		invitation.Key = newKeyStructKey
+
+		// adding the recipientusername to AC.InvitationNameMap, & the UUIDs/keys to the keystruct that we shared
+		AC.InvitationNameMap[filename] = append(AC.InvitationNameMap[filename], recipientUsername)
+		filenameusername := filename + recipientUsername
+		AC.InvitationAccessMap[filenameusername] = newKeyStructUUID
+		AC.InvitationKeyMap[filenameusername] = newKeyStructKey
+
+		// store AC in datastore
+		ACJSON, err := json.Marshal(AC)
+		if err != nil {
+			return uuid.Nil, err
+		}
+		ACEncrypted := macandencrypt(userdata.ACKey, ACJSON)
+		userlib.DatastoreSet(ACUUID, ACEncrypted)
+	}
+	// marshal the invitation
+	invitationJSON, err := json.Marshal(invitation)
+	if err != nil {
+		return uuid.Nil, err
+	}
+	invitationPtr = uuid.New()
+	// userlib.KeystoreSet(username+" PKEEncKey", PKEEncKey)
+	// userlib.KeystoreSet(username+" DSVerifyKey", DSVerifyKey)
+	// encrypt with recipient's public key, sign with inviter's private key
+	enckey, ok := userlib.KeystoreGet(recipientUsername + " PKEEncKey")
+	if !ok {
+		return uuid.Nil, errors.New("can't find recipient's PKEEncKey")
+	}
+	invitationEncrypted := signandencrypt(enckey, userdata.DSSignKey, invitationJSON)
+	userlib.DatastoreSet(invitationPtr, invitationEncrypted)
+
+	return invitationPtr, nil
 }
 
 func (userdata *User) AcceptInvitation(senderUsername string, invitationPtr uuid.UUID, filename string) error {
