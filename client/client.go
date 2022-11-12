@@ -395,6 +395,24 @@ func (userdata *User) StoreFile(filename string, content []byte) (err error) {
 }
 
 func (userdata *User) AppendToFile(filename string, content []byte) error {
+	AC, ok := userlib.DatastoreGet(userdata.AccessControlUUID)
+	if !ok{return errors.New("AC not found")}
+	var Access AccessControl
+	json.Unmarshal(AC, &Access)
+	if keyStructUUID, ok := Access.KeyStructUUIDMap[filename]; !ok{
+		print(keyStructUUID)
+		return errors.New("file not found")
+	}
+	keyStructUUID := Access.KeyStructUUIDMap[filename]
+	keyStructenc, ok := userlib.DatastoreGet(keyStructUUID)
+	if !ok{return errors.New("keyStruct not found")}
+
+	var keystruct keyStruct
+	json.Unmarshal(keyStructenc, &keystruct)
+
+	
+
+
 	return nil
 }
 
