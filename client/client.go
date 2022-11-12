@@ -203,6 +203,18 @@ func decrypt(key []byte, ciphertext []byte, MAC []byte) (decryptedFile []byte, e
 	return decryptedFile, nil
 }
 
+func publicKeyDecrypt(deckey userlib.PKEDecKey, verifykey userlib.DSVerifyKey, ciphertext []byte, signature []byte) (plaintext []byte, err error) {
+	err = userlib.DSVerify(verifykey, ciphertext, signature)
+	if err != nil {
+		return nil, err
+	}
+	plaintext, err = userlib.PKEDec(deckey, ciphertext)
+	if err != nil {
+		return nil, err
+	}
+	return plaintext, err
+}
+
 // NOTE: The following methods have toy (insecure!) implementations.
 
 func InitUser(username string, password string) (userdataptr *User, err error) {
@@ -462,18 +474,20 @@ func (userdata *User) AppendToFile(filename string, content []byte) error {
 
 	contentkey := userlib.RandomBytes(16)
 	contentmarsh, err := json.Marshal(newcontent)
-	if err != nil{
+	if err != nil {
 		return err
 	}
 	contentto := macandencrypt(contentkey, contentmarsh)
 	contentuuid := uuid.New()
 	userlib.DatastoreSet(contentuuid, contentto)
 
-	fileContent.LastBlock=contentuuid
+	fileContent.LastBlock = contentuuid
 	fileContent.LastBlockKey = contentkey
 
 	fileContentmarsh, err := json.Marshal(fileContent)
-	if err != nil{return err}
+	if err != nil {
+		return err
+	}
 	filecontento := macandencrypt(filenameKeyStruct.Key, fileContentmarsh)
 	userlib.DatastoreSet(filenameKeyStruct.FileUUID, filecontento)
 
@@ -693,6 +707,64 @@ func (userdata *User) CreateInvitation(filename string, recipientUsername string
 }
 
 func (userdata *User) AcceptInvitation(senderUsername string, invitationPtr uuid.UUID, filename string) error {
+	// check if filename in user's AccessControl
+	ACUUID := userdata.AccessControlUUID
+	ACenc, ok := userlib.DatastoreGet(ACUUID)
+	if !ok {
+		return errors.New("invitee's accesscontrol not found")
+	}
+	ACdec, err := decrypt(userdata.ACKey, ACenc[64:], ACenc[:64])
+	if err != nil {
+		return err
+	}
+	var AC AccessControl
+	err = json.Unmarshal(ACdec, &AC)
+	if err != nil {
+		return err
+	}
+	_, ok = AC.KeyStructUUIDMap[filename]
+	if ok {
+		return errors.New("filename exists in invitee's ac.keystructuuidmap, can't accept invitation")
+	}
+
+	// decrypt invitationPtr
+	invitationEncrypted, ok := userlib.DatastoreGet(invitationPtr)
+	if !ok {
+		return errors.New("can't find invitationptr in datastore")
+	}
+	// userlib.KeystoreSet(username+" PKEEncKey", PKEEncKey)
+	// userlib.KeystoreSet(username+" DSVerifyKey", DSVerifyKey)
+	// encrypt with recipient's public key, sign with inviter's private key
+	deckey := userdata.PKEDecKey
+	verifykey, ok := userlib.KeystoreGet(senderUsername + " DSVerifyKey")
+	if !ok {
+		return errors.New("can't find sender's public ds key in keystore")
+	}
+	invitationDecrypted, err := publicKeyDecrypt(deckey, verifykey, invitationEncrypted[256:], invitationEncrypted[:256])
+	if err != nil {
+		return err
+	}
+	var invitation InvitationBlock
+	err = json.Unmarshal(invitationDecrypted, &invitation)
+	if err != nil {
+		return err
+	}
+
+	// check if invitation is still valid (i.e. keystruct still exists)
+	_, ok = userlib.DatastoreGet(invitation.KeyStructUUID)
+	if !ok {
+		return errors.New("can't find keystruct of shared file in datastore")
+	}
+
+	// update invitee's AC to reflect the new UUID/key of the shared file's keystruct
+	AC.KeyStructUUIDMap[filename] = invitation.KeyStructUUID
+	AC.KeyMap[filename] = invitation.Key
+	ACJSON, err := json.Marshal(AC)
+	if err != nil {
+		return err
+	}
+	ACEncrypted := macandencrypt(userdata.ACKey, ACJSON)
+	userlib.DatastoreSet(ACUUID, ACEncrypted)
 	return nil
 }
 
