@@ -14,7 +14,6 @@ import (
 	// hex.EncodeToString(...) is useful for converting []byte to string
 
 	// Useful for string manipulation
-	"strings"
 
 	// Useful for formatting strings (e.g. `fmt.Sprintf`).
 	"fmt"
@@ -115,35 +114,34 @@ type keyStruct struct {
 	FileUUID uuid.UUID
 }
 
-
 type AccessControl struct { // this struct is encrypted
-	KeyStructUUIDMap map[string]uuid.UUID // dictionary of pointers to keystruct (keys of maps == fileName)
-	KeyMap map[string][]byte // dictionary of keys used for encrypted keystruct
-	OwnedFiles map[string]string // see which files you own
-	InvitationNameMap map[string][]string //filename : username
+	KeyStructUUIDMap    map[string]uuid.UUID // dictionary of pointers to keystruct (keys of maps == fileName)
+	KeyMap              map[string][]byte    // dictionary of keys used for encrypted keystruct
+	OwnedFiles          map[string]string    // see which files you own
+	InvitationNameMap   map[string][]string  //filename : username
 	InvitationAccessMap map[string]uuid.UUID // filename-username : uuid of file
-	InvitationKeyMap map[string][]byte //filename-username : key
+	InvitationKeyMap    map[string][]byte    //filename-username : key
 
 }
 
 type FileContent struct { // this struct is encrypted
 	// KeyMap map[string][]byte; // keys to decrypt and mac contentblocks in contentList
 	// ContentList: []byte; // array of pointers to content blocks
-	UserMap      map[string][]string // map of (parent: [child1, child2, ...])
-	LastBlock    uuid.UUID           // UUID to last block
-	LastBlockKey []byte              // key of last block
+	// UserMap      map[string][]string // map of (parent: [child1, child2, ...])
+	LastBlock    uuid.UUID // UUID to last block
+	LastBlockKey []byte    // key of last block
 	// MACMap: []byte // array of MACs for ContentBlocks in ContentList (MACs now stored in bytestring)
 }
 
 type ContentBlock struct {
 	ENContent    []byte // content to be decrypted to KNOWLEDGE
-	PrevBlock    []byte
+	PrevBlock    uuid.UUID
 	PrevBlockKey []byte
 }
 
 type InvitationBlock struct {
 	KeyStructUUID uuid.UUID
-	key []byte
+	Key           []byte
 }
 
 // helper functions
@@ -242,9 +240,9 @@ func InitUser(username string, password string) (userdataptr *User, err error) {
 	AC.KeyMap = make(map[string][]byte)
 	// AC.InvitationMap = make(map[FileUserKey][]byte)
 	AC.OwnedFiles = make(map[string]string)
-	AC.InvitationNameMap = make(map[string][]string) //filename : username
+	AC.InvitationNameMap = make(map[string][]string)    //filename : username
 	AC.InvitationAccessMap = make(map[string]uuid.UUID) // filename-username : uuid of file
-	AC.InvitationKeyMap = make(map[string][]byte) //filename-username : key
+	AC.InvitationKeyMap = make(map[string][]byte)       //filename-username : key
 	ACkey := userlib.RandomBytes(16)
 	ACenc, err := json.Marshal(AC)
 	if err != nil {
@@ -323,12 +321,16 @@ func (userdata *User) StoreFile(filename string, content []byte) (err error) {
 	}
 	filekey := userlib.RandomBytes(16)
 	fileuuid := uuid.New()
-	if keyStructUUID, ok := AC.KeyStructUUIDMap[filename]; ok{
+	if keyStructUUID, ok := AC.KeyStructUUIDMap[filename]; ok {
 		keyStructKey := AC.KeyMap[filename]
 		keyStructd, ok := userlib.DatastoreGet(keyStructUUID)
-		if !ok { return errors.New("not found") }
+		if !ok {
+			return errors.New("not found")
+		}
 		keystructdec, err := decrypt(keyStructKey, keyStructd[64:], keyStructd[:64])
-		if err != nil { return err }
+		if err != nil {
+			return err
+		}
 		var keydata keyStruct
 		json.Unmarshal(keystructdec, &keydata)
 		fileuuid = keydata.FileUUID
@@ -339,41 +341,45 @@ func (userdata *User) StoreFile(filename string, content []byte) (err error) {
 	contentKey := userlib.RandomBytes(16)
 	var block ContentBlock
 	block.ENContent = content
-	block.PrevBlock = nil
+	block.PrevBlock = uuid.Nil
 	block.PrevBlockKey = nil
 	contentenc, err := json.Marshal(block)
-	if err != nil{return err}
+	if err != nil {
+		return err
+	}
 	contentUUID := uuid.New()
 	contentto := macandencrypt(contentKey, contentenc)
 	userlib.DatastoreSet(contentUUID, contentto)
 
 	//create FileContent Block
 	var file FileContent
-	file.UserMap = make(map[string][]string)
-	file.UserMap[userdata.Username] = make([]string, 0)
+	//file.UserMap = make(map[string][]string)
+	//file.UserMap[userdata.Username] = make([]string, 0)
 	file.LastBlock = contentUUID
 	file.LastBlockKey = contentKey
 
 	fileenc, err := json.Marshal(file)
-	if err != nil{
+	if err != nil {
 		return err
 	}
 	fileto := macandencrypt(filekey, fileenc)
 	userlib.DatastoreSet(fileuuid, fileto)
 
-	if keyStructUUID, ok := AC.KeyStructUUIDMap[filename]; ok{ 
+	if keyStructUUID, ok := AC.KeyStructUUIDMap[filename]; ok {
 		fmt.Print(keyStructUUID)
 		return nil
 	}
 
 	//Create Keystruct
 	keystructuuid, err := uuid.FromBytes(userlib.Hash([]byte(filename + userdata.Username))[:16]) //owner -> userto share -> filename
-	if err != nil{return err}
+	if err != nil {
+		return err
+	}
 	var magicbox keyStruct
 	magicbox.FileUUID = fileuuid
 	magicbox.Key = filekey
 	magicboxenc, err := json.Marshal(magicbox)
-	if err != nil{
+	if err != nil {
 		return err
 	}
 	magicboxkey := userlib.RandomBytes(16)
@@ -417,16 +423,92 @@ func (userdata *User) AppendToFile(filename string, content []byte) error {
 }
 
 func (userdata *User) LoadFile(filename string) (content []byte, err error) {
-	storageKey, err := uuid.FromBytes(userlib.Hash([]byte(filename + userdata.Username))[:16])
+	// fetch and decrypt user's AccessControl
+	ACUUID := userdata.AccessControlUUID
+	ACenc, ok := userlib.DatastoreGet(ACUUID)
+	if !ok {
+		return nil, errors.New("not found")
+	}
+	ACdec, err := decrypt(userdata.ACKey, ACenc[64:], ACenc[:64])
+	if err != nil {
+		return nil, errors.New("can't decrypt accesscontrol struct")
+	}
+	var AC AccessControl
+	err = json.Unmarshal(ACdec, &AC)
+	if err != nil {
+		return nil, errors.New("can't unmarshal accesscontrol struct")
+	}
+	keyStructUUID, ok := AC.KeyStructUUIDMap[filename]
+	if !ok {
+		return nil, errors.New("can't find filename in user's keystructuuidmap")
+	}
+	keyStructKey, ok := AC.KeyMap[filename]
+	if !ok {
+		return nil, errors.New("can't find filename in user's keymap")
+	}
+
+	// fetch and decrypt filename's KeyStruct
+	keyStructEncryptedJSON, ok := userlib.DatastoreGet(keyStructUUID)
+	if !ok {
+		return nil, errors.New("can't find keystruct in datastore")
+	}
+	keyStructDecryptedJSON, err := decrypt(keyStructKey, keyStructEncryptedJSON[64:], keyStructEncryptedJSON[:64])
 	if err != nil {
 		return nil, err
 	}
-	dataJSON, ok := userlib.DatastoreGet(storageKey)
-	if !ok {
-		return nil, errors.New(strings.ToTitle("file not found"))
+	var filenameKeyStruct keyStruct
+	err = json.Unmarshal(keyStructDecryptedJSON, &filenameKeyStruct)
+	if err != nil {
+		return nil, err
 	}
-	err = json.Unmarshal(dataJSON, &content)
-	return content, err
+
+	// fetch FileContent from Datastore
+	fileContentEncryptedJSON, ok := userlib.DatastoreGet(filenameKeyStruct.FileUUID)
+	if !ok {
+		return nil, errors.New("can't find filecontent from datastore")
+	}
+	fileContentDecryptedJSON, err := decrypt(filenameKeyStruct.Key, fileContentEncryptedJSON[64:], fileContentEncryptedJSON[:64])
+	if err != nil {
+		return nil, err
+	}
+	var fileContent FileContent
+	err = json.Unmarshal(fileContentDecryptedJSON, &fileContent)
+	if err != nil {
+		return nil, err
+	}
+	output := ""
+	curBlockUUID := fileContent.LastBlock
+	curBlockKey := fileContent.LastBlockKey
+	for curBlockUUID != uuid.Nil {
+		curBlockEncryptedJSON, ok := userlib.DatastoreGet(curBlockUUID)
+		if !ok {
+			return nil, errors.New("last block not found in datastore")
+		}
+		curBlockDecryptedJSON, err := decrypt(curBlockKey, curBlockEncryptedJSON[64:], curBlockEncryptedJSON[:64])
+		if err != nil {
+			return nil, err
+		}
+		var curBlock ContentBlock
+		err = json.Unmarshal(curBlockDecryptedJSON, &curBlock)
+		if err != nil {
+			return nil, err
+		}
+		output = string(curBlock.ENContent) + output
+		curBlockUUID = curBlock.PrevBlock
+		curBlockKey = curBlock.PrevBlockKey
+	}
+	return []byte(output), nil
+
+	// storageKey, err := uuid.FromBytes(userlib.Hash([]byte(filename + userdata.Username))[:16])
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// dataJSON, ok := userlib.DatastoreGet(storageKey)
+	// if !ok {
+	// 	return nil, errors.New(strings.ToTitle("file not found"))
+	// }
+	// err = json.Unmarshal(dataJSON, &content)
+	// return content, err
 }
 
 func (userdata *User) CreateInvitation(filename string, recipientUsername string) (
