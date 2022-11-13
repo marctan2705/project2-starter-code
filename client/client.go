@@ -832,12 +832,12 @@ func (userdata *User) RevokeAccess(filename string, recipientUsername string) er
 
 	userlist := make([]string, 0, 0 )
 	for index, a:= range AC.InvitationNameMap[filename]{
+		filenameusername := filename + a
 		if a == recipientUsername {
-			continue
+			userlib.DatastoreDelete(AC.InvitationAccessMap[filenameusername])
 		}else{
 			userlist = append(userlist, a)
 			print(index)
-			filenameusername := filename + a
 			dataenc, ok := userlib.DatastoreGet(AC.InvitationAccessMap[filenameusername])
 			print(ok)
 			data, err := decrypt(AC.InvitationKeyMap[filenameusername], dataenc[64:], dataenc[:64])
@@ -852,10 +852,12 @@ func (userdata *User) RevokeAccess(filename string, recipientUsername string) er
 			ksuto := macandencrypt(AC.InvitationKeyMap[filenameusername], ksumarsh)
 			userlib.DatastoreSet(AC.InvitationAccessMap[filenameusername], ksuto)
 		}
-		
 	}
-
-
+	AC.InvitationNameMap[filename] = userlist
+	ACmarsh, err := json.Marshal(AC)
+	if err != nil{return err}
+	ACto:= macandencrypt(userdata.ACKey, ACmarsh)
+	userlib.DatastoreSet(ACUUID, ACto)
 	//revoke access
 	return nil
 }
