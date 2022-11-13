@@ -15,9 +15,9 @@ import (
 	// A "dot" import is used here so that the functions in the ginko and gomega
 	// modules can be used without an identifier. For example, Describe() and
 	// Expect() instead of ginko.Describe() and gomega.Expect().
+	"github.com/google/uuid"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/google/uuid"
 
 	userlib "github.com/cs161-staff/project2-userlib"
 
@@ -264,6 +264,23 @@ var _ = Describe("Client Tests", func() {
 			print(alicedatacheck)
 			Expect(ok).To(BeTrue())
 			// Expect(alicedatacheck == alicedata).To(BeTrue())
+		})
+
+		Specify("Basic Test #3: Passwords need not be unique", func() {
+			userlib.DebugMsg("Initializing users Alice and Bob.")
+			alice, err = client.InitUser("alice", defaultPassword)
+			Expect(err).To(BeNil())
+
+			bob, err = client.InitUser("bob", defaultPassword)
+			Expect(err).To(BeNil())
+
+			userlib.DebugMsg("Getting user Alice.")
+			alice, err = client.GetUser("alice", defaultPassword)
+			Expect(err).To(BeNil())
+
+			userlib.DebugMsg("Getting user Bob.")
+			bob, err = client.GetUser("bob", defaultPassword)
+			Expect(err).To(BeNil())
 		})
 
 	})
