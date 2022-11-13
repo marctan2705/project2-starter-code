@@ -388,6 +388,12 @@ var _ = Describe("Client Tests", func() {
 			Expect(err).To(BeNil())
 			Expect(data).To(Equal([]byte(emptyString)))
 		})
+		Specify("Basic Test #7: empty username", func() {
+			userlib.DebugMsg("Initializing users \"\" ")
+			user, err := client.InitUser("", defaultPassword)
+			Expect(err).ToNot(BeNil())
+			Expect(user).To(BeNil())
+		})
 
 	})
 })
