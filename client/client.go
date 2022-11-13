@@ -219,6 +219,9 @@ func publicKeyDecrypt(deckey userlib.PKEDecKey, verifykey userlib.DSVerifyKey, c
 
 func InitUser(username string, password string) (userdataptr *User, err error) {
 	// all the user stuff
+	if len(username) == 0 {
+		return nil, errors.New("username is empty")
+	}
 	var userdata User
 	byteUsername := userlib.Hash([]byte(username))[:16]
 	userdata.Username = username
@@ -285,6 +288,9 @@ func GetUser(username string, password string) (userdataptr *User, err error) {
 	// var userdata User
 	// userdataptr = &userdata
 	// print(userdataptr)
+	if len(username) == 0 {
+		return nil, errors.New("username is empty")
+	}
 	byteUsername := userlib.Hash([]byte(username))[:16]
 	bytePassword := []byte(password)
 	key := userlib.Argon2Key(bytePassword, []byte(username), 16)
