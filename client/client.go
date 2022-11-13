@@ -119,8 +119,8 @@ type AccessControl struct { // this struct is encrypted
 	KeyMap              map[string][]byte    // dictionary of keys used for encrypted keystruct
 	OwnedFiles          map[string]string    // see which files you own
 	InvitationNameMap   map[string][]string  //filename : username
-	InvitationAccessMap map[string]uuid.UUID // filename-username : uuid of file
-	InvitationKeyMap    map[string][]byte    //filename-username : key
+	InvitationAccessMap map[string]uuid.UUID // filenameusername : uuid of keystruct
+	InvitationKeyMap    map[string][]byte    //filenameusername : key
 }
 
 type FileContent struct { // this struct is encrypted
@@ -697,5 +697,93 @@ func (userdata *User) AcceptInvitation(senderUsername string, invitationPtr uuid
 }
 
 func (userdata *User) RevokeAccess(filename string, recipientUsername string) error {
+	// fetch and decrypt user's AccessControl
+	ACUUID := userdata.AccessControlUUID
+	ACenc, ok := userlib.DatastoreGet(ACUUID)
+	if !ok {
+		return errors.New("not found")
+	}
+	ACdec, err := decrypt(userdata.ACKey, ACenc[64:], ACenc[:64])
+	if err != nil {
+		return errors.New("can't decrypt accesscontrol struct")
+	}
+	var AC AccessControl
+	err = json.Unmarshal(ACdec, &AC)
+	if err != nil {
+		return errors.New("can't unmarshal accesscontrol struct")
+	}
+	keyStructUUID, ok := AC.KeyStructUUIDMap[filename]
+	if !ok {
+		return errors.New("can't find filename in user's keystructuuidmap")
+	}
+	keyStructKey, ok := AC.KeyMap[filename]
+	if !ok {
+		return errors.New("can't find filename in user's keymap")
+	}
+
+	// fetch and decrypt filename's KeyStruct
+	keyStructEncryptedJSON, ok := userlib.DatastoreGet(keyStructUUID)
+	if !ok {
+		return errors.New("can't find keystruct in datastore")
+	}
+	keyStructDecryptedJSON, err := decrypt(keyStructKey, keyStructEncryptedJSON[64:], keyStructEncryptedJSON[:64])
+	if err != nil {
+		return err
+	}
+	var filenameKeyStruct keyStruct
+	err = json.Unmarshal(keyStructDecryptedJSON, &filenameKeyStruct)
+	if err != nil {
+		return err
+	}
+
+	// fetch FileContent from Datastore
+	fileContentEncryptedJSON, ok := userlib.DatastoreGet(filenameKeyStruct.FileUUID)
+	if !ok {
+		return errors.New("can't find filecontent from datastore")
+	}
+	fileContentDecryptedJSON, err := decrypt(filenameKeyStruct.Key, fileContentEncryptedJSON[64:], fileContentEncryptedJSON[:64])
+	if err != nil {
+		return err
+	}
+
+	newkey := userlib.RandomBytes(16)
+	filecontentto := macandencrypt(newkey, fileContentDecryptedJSON)
+	newfileuuid := uuid.New()
+	userlib.DatastoreSet(newfileuuid, filecontentto)
+
+	filenameKeyStruct.FileUUID = newfileuuid
+	filenameKeyStruct.Key = newkey
+	filenameKeystructenc, err := json.Marshal(filenameKeyStruct)
+	if err != nil{return err}
+	filenameKeyStructto := macandencrypt(keyStructKey, filenameKeystructenc)
+	userlib.DatastoreSet(keyStructUUID, filenameKeyStructto)
+
+	userlist := make([]string, 0, 0 )
+	for index, a:= range AC.InvitationNameMap[filename]{
+		if a == recipientUsername {
+			continue
+		}else{
+			userlist = append(userlist, a)
+			print(index)
+			filenameusername := filename + a
+			dataenc, ok := userlib.DatastoreGet(AC.InvitationAccessMap[filenameusername])
+			print(ok)
+			data, err := decrypt(AC.InvitationKeyMap[filenameusername], dataenc[64:], dataenc[:64])
+			if err != nil{return err}
+			var keyStructUser keyStruct
+			err = json.Unmarshal(data, &keyStructUser)
+			if err != nil{return err}
+			keyStructUser.FileUUID = newfileuuid
+			keyStructUser.Key = newkey
+			ksumarsh, err := json.Marshal(keyStructUser)
+			if err != nil{return err}
+			ksuto := macandencrypt(AC.InvitationKeyMap[filenameusername], ksumarsh)
+			userlib.DatastoreSet(AC.InvitationAccessMap[filenameusername], ksuto)
+		}
+		
+	}
+
+
+	//revoke access
 	return nil
 }
