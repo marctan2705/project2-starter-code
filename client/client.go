@@ -234,6 +234,10 @@ func InitUser(username string, password string) (userdataptr *User, err error) {
 		return nil, err
 	}
 	UUID := uuid.Must(uuid.FromBytes(byteUsername))
+	_, ok := userlib.DatastoreGet(UUID)
+	if !ok {
+		return nil, errors.New("username already exists; uuid derived from username found in datastore")
+	}
 	userdata.DSSignKey = DSSignKey
 	PKEEncKey, PKEDecKey, err := userlib.PKEKeyGen()
 	if err != nil {
