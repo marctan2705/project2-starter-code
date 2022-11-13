@@ -307,7 +307,6 @@ var _ = Describe("Client Tests", func() {
 			// Expect(alicedatacheck == alicedata).To(BeTrue())
 		})
 
-
 		Specify("Basic Test #3: Passwords need not be unique", func() {
 			userlib.DebugMsg("Initializing users Alice and Bob.")
 			alice, err = client.InitUser("alice", defaultPassword)
@@ -393,6 +392,30 @@ var _ = Describe("Client Tests", func() {
 			user, err := client.InitUser("", defaultPassword)
 			Expect(err).ToNot(BeNil())
 			Expect(user).To(BeNil())
+		})
+
+		Specify("Test 5.2 error 3: User struct cannot be obtained (integrity of user struct compromised)", func() {
+			userlib.DebugMsg("Initializing user Alice.")
+			alice, err = client.InitUser("alice", defaultPassword)
+			Expect(err).To(BeNil())
+
+			userlib.DebugMsg("Getting user Alice.")
+			aliceLaptop, err = client.GetUser("alice", defaultPassword)
+			Expect(err).To(BeNil())
+
+			// changing Alice's userstruct
+			dataStoreMap := userlib.DatastoreGetMap()
+			for UUID, value := range dataStoreMap {
+				userlib.DatastoreSet(UUID, value[:len(value)-1])
+			}
+
+			userlib.DebugMsg("Getting user Alice on laptop after editing all user structs (Should return error).")
+			aliceLaptop, err = client.GetUser("alice", defaultPassword)
+			Expect(err).ToNot(BeNil())
+
+			userlib.DebugMsg("Getting user Alice after editing all user structs (Should return error).")
+			alice, err = client.GetUser("alice", defaultPassword)
+			Expect(err).ToNot(BeNil())
 		})
 
 	})
