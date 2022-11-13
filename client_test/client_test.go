@@ -250,7 +250,7 @@ var _ = Describe("Client Tests", func() {
 			Expect(err).To(BeNil())
 			alicedata, err = client.InitUser("Alice", "12345678")
 			print(alicedata)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(BeNil())
 		})
 		Specify("Basic Test: Testing Case Sensitive Functionality", func() {
 			userlib.DebugMsg("Inititalising alice")
