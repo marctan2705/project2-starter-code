@@ -685,7 +685,7 @@ func (userdata *User) CreateInvitation(filename string, recipientUsername string
 
 		// adding the recipientusername to AC.InvitationNameMap, & the UUIDs/keys to the keystruct that we shared
 		AC.InvitationNameMap[filename] = append(AC.InvitationNameMap[filename], recipientUsername)
-		filenameusername := string(userlib.Hash([]byte(filename))) + string(userlib.Hash([]byte(recipientUsername)))
+		filenameusername := filename + recipientUsername
 		AC.InvitationAccessMap[filenameusername] = newKeyStructUUID
 		AC.InvitationKeyMap[filenameusername] = newKeyStructKey
 
@@ -845,10 +845,11 @@ func (userdata *User) RevokeAccess(filename string, recipientUsername string) er
 	userlist := make([]string, 0, 0)
 	for index, a := range AC.InvitationNameMap[filename] {
 		// filenameusername := filename + a
-		filenameusername := string(userlib.Hash([]byte(filename))) + string(userlib.Hash([]byte(a)))
+		filenameusername := filename + a
 		if a == recipientUsername {
 			userlib.DebugMsg(a)
 			userlib.DatastoreDelete(AC.InvitationAccessMap[filenameusername])
+			// userlib.DebugMsg(a)
 		} else {
 			userlist = append(userlist, a)
 			print(index)
