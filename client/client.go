@@ -847,6 +847,7 @@ func (userdata *User) RevokeAccess(filename string, recipientUsername string) er
 		// filenameusername := filename + a
 		filenameusername := string(userlib.Hash([]byte(filename))) + string(userlib.Hash([]byte(a)))
 		if a == recipientUsername {
+			userlib.DebugMsg(a)
 			userlib.DatastoreDelete(AC.InvitationAccessMap[filenameusername])
 		} else {
 			userlist = append(userlist, a)
