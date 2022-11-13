@@ -235,7 +235,7 @@ func InitUser(username string, password string) (userdataptr *User, err error) {
 	}
 	UUID := uuid.Must(uuid.FromBytes(byteUsername))
 	_, ok := userlib.DatastoreGet(UUID)
-	if !ok {
+	if ok {
 		return nil, errors.New("username already exists; uuid derived from username found in datastore")
 	}
 	userdata.DSSignKey = DSSignKey
