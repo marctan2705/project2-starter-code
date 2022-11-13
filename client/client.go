@@ -826,35 +826,42 @@ func (userdata *User) RevokeAccess(filename string, recipientUsername string) er
 	filenameKeyStruct.FileUUID = newfileuuid
 	filenameKeyStruct.Key = newkey
 	filenameKeystructenc, err := json.Marshal(filenameKeyStruct)
-	if err != nil{return err}
+	if err != nil {
+		return err
+	}
 	filenameKeyStructto := macandencrypt(keyStructKey, filenameKeystructenc)
 	userlib.DatastoreSet(keyStructUUID, filenameKeyStructto)
 
-	userlist := make([]string, 0, 0 )
-	for index, a:= range AC.InvitationNameMap[filename]{
+	userlist := make([]string, 0, 0)
+	for index, a := range AC.InvitationNameMap[filename] {
 		if a == recipientUsername {
 			continue
-		}else{
+		} else {
 			userlist = append(userlist, a)
 			print(index)
 			filenameusername := filename + a
 			dataenc, ok := userlib.DatastoreGet(AC.InvitationAccessMap[filenameusername])
 			print(ok)
 			data, err := decrypt(AC.InvitationKeyMap[filenameusername], dataenc[64:], dataenc[:64])
-			if err != nil{return err}
+			if err != nil {
+				return err
+			}
 			var keyStructUser keyStruct
 			err = json.Unmarshal(data, &keyStructUser)
-			if err != nil{return err}
+			if err != nil {
+				return err
+			}
 			keyStructUser.FileUUID = newfileuuid
 			keyStructUser.Key = newkey
 			ksumarsh, err := json.Marshal(keyStructUser)
-			if err != nil{return err}
+			if err != nil {
+				return err
+			}
 			ksuto := macandencrypt(AC.InvitationKeyMap[filenameusername], ksumarsh)
 			userlib.DatastoreSet(AC.InvitationAccessMap[filenameusername], ksuto)
 		}
-		
-	}
 
+	}
 
 	//revoke access
 	return nil
