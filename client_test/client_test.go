@@ -434,8 +434,8 @@ var _ = Describe("Client Tests", func() {
 
 			// changing Alice's userstruct
 			dataStoreMap := userlib.DatastoreGetMap()
-			for UUID := range dataStoreMap {
-				userlib.DatastoreSet(UUID, []byte(emptyString))
+			for UUID, value := range dataStoreMap {
+				userlib.DatastoreSet(UUID, append(value, value...))
 			}
 
 			userlib.DebugMsg("Getting user Alice on laptop after editing all user structs (Should return error).")
