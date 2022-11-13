@@ -234,6 +234,10 @@ func InitUser(username string, password string) (userdataptr *User, err error) {
 		return nil, err
 	}
 	UUID := uuid.Must(uuid.FromBytes(byteUsername))
+	_, ok := userlib.DatastoreGet(UUID)
+	if !ok {
+		return nil, errors.New("username already exists; uuid derived from username found in datastore")
+	}
 	userdata.DSSignKey = DSSignKey
 	PKEEncKey, PKEDecKey, err := userlib.PKEKeyGen()
 	if err != nil {
@@ -826,37 +830,47 @@ func (userdata *User) RevokeAccess(filename string, recipientUsername string) er
 	filenameKeyStruct.FileUUID = newfileuuid
 	filenameKeyStruct.Key = newkey
 	filenameKeystructenc, err := json.Marshal(filenameKeyStruct)
-	if err != nil{return err}
+	if err != nil {
+		return err
+	}
 	filenameKeyStructto := macandencrypt(keyStructKey, filenameKeystructenc)
 	userlib.DatastoreSet(keyStructUUID, filenameKeyStructto)
 
-	userlist := make([]string, 0, 0 )
-	for index, a:= range AC.InvitationNameMap[filename]{
+	userlist := make([]string, 0, 0)
+	for index, a := range AC.InvitationNameMap[filename] {
 		filenameusername := filename + a
 		if a == recipientUsername {
 			userlib.DatastoreDelete(AC.InvitationAccessMap[filenameusername])
-		}else{
+		} else {
 			userlist = append(userlist, a)
 			print(index)
 			dataenc, ok := userlib.DatastoreGet(AC.InvitationAccessMap[filenameusername])
 			print(ok)
 			data, err := decrypt(AC.InvitationKeyMap[filenameusername], dataenc[64:], dataenc[:64])
-			if err != nil{return err}
+			if err != nil {
+				return err
+			}
 			var keyStructUser keyStruct
 			err = json.Unmarshal(data, &keyStructUser)
-			if err != nil{return err}
+			if err != nil {
+				return err
+			}
 			keyStructUser.FileUUID = newfileuuid
 			keyStructUser.Key = newkey
 			ksumarsh, err := json.Marshal(keyStructUser)
-			if err != nil{return err}
+			if err != nil {
+				return err
+			}
 			ksuto := macandencrypt(AC.InvitationKeyMap[filenameusername], ksumarsh)
 			userlib.DatastoreSet(AC.InvitationAccessMap[filenameusername], ksuto)
 		}
 	}
 	AC.InvitationNameMap[filename] = userlist
 	ACmarsh, err := json.Marshal(AC)
-	if err != nil{return err}
-	ACto:= macandencrypt(userdata.ACKey, ACmarsh)
+	if err != nil {
+		return err
+	}
+	ACto := macandencrypt(userdata.ACKey, ACmarsh)
 	userlib.DatastoreSet(ACUUID, ACto)
 	//revoke access
 	return nil
