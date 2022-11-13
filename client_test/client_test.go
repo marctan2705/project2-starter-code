@@ -17,6 +17,7 @@ import (
 	// Expect() instead of ginko.Describe() and gomega.Expect().
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/google/uuid"
 
 	userlib "github.com/cs161-staff/project2-userlib"
 
@@ -241,6 +242,28 @@ var _ = Describe("Client Tests", func() {
 
 			err = charles.AppendToFile(charlesFile, []byte(contentTwo))
 			Expect(err).ToNot(BeNil())
+		})
+		Specify("Basic Test: Testing Unique Username Functionality", func() {
+			userlib.DebugMsg("Inititalising Alice")
+			alicedata, err := client.InitUser("Alice", "12345678")
+			print(alicedata)
+			Expect(err).To(BeNil())
+			alicedata, err = client.InitUser("Alice", "12345678")
+			print(alicedata)
+			Expect(err).To(BeNil())
+		})
+		Specify("Basic Test: Testing Case Sensitive Functionality", func() {
+			userlib.DebugMsg("Inititalising alice")
+			alicedata, err := client.InitUser("alice", "12345678")
+			print(alicedata)
+			Expect(err).To(BeNil())
+			Alicedata, err := client.InitUser("Alice", "12345678")
+			print(Alicedata)
+			Expect(err).To(BeNil())
+			alicedatacheck, ok := userlib.DatastoreGet(uuid.Must(uuid.FromBytes(userlib.Hash([]byte("alice"))[:16])))
+			print(alicedatacheck)
+			Expect(ok).To(BeTrue())
+			// Expect(alicedatacheck == alicedata).To(BeTrue())
 		})
 
 	})
