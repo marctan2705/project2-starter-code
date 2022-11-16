@@ -498,6 +498,16 @@ var _ = Describe("Client Tests", func() {
 			_, err := alice.LoadFile(aliceFile)
 			Expect(err).ToNot(BeNil())
 		})
+
+		Specify("Test: Changing FileContent and Keystruct, checking that LoadFile fails.", func() {
+			userlib.DebugMsg("Initializing user Alice.")
+			alice, err := client.InitUser("alice", defaultPassword)
+			Expect(err).To(BeNil())
+			print(alice)
+			alice2, err := client.GetUser("", "ewoifhiof")
+			Expect(err).ToNot(BeNil())
+			print(alice2)
+		})
 		///////////////////////////////////////////////////////////////////////////////////////////
 
 		// Specify("Basic Test #10: Integrity compromised", func() {
