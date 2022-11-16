@@ -509,14 +509,56 @@ var _ = Describe("Client Tests", func() {
 			print(alice2)
 		})
 
-		// Specify("Test: Check number of keys in keystore is O(n), n = number of users", func() {
-		// 	userlib.DebugMsg("Initializing user Alice.")
-		// 	alice, err = client.InitUser("alice", defaultPassword)
-		// 	Expect(err).To(BeNil())
-		// 	numberOfKeysPerUser := len(userlib.KeystoreGetMap())
+		Specify("Test: Check number of keys in keystore is O(n), n = number of users", func() {
+			userlib.DebugMsg("Initializing user Alice.")
+			alice, err = client.InitUser("alice", defaultPassword)
+			Expect(err).To(BeNil())
+			numberOfKeysPerUser := len(userlib.KeystoreGetMap())
+			numUsers := 1
+			for i := 1; i < 100; i++ {
+				// userlib.DebugMsg(strconv.Itoa(i))
+				alice.StoreFile(strconv.Itoa(i), []byte(strconv.Itoa(i)))
+			}
 
-		// 	for i
-		// })
+			numberOfKeys := len(userlib.KeystoreGetMap())
+			userlib.DebugMsg("Check if number of files don't change number of keys")
+			Expect(numberOfKeys).To(BeIdenticalTo(numberOfKeysPerUser))
+
+			for i := 1; i < 100; i++ {
+				client.InitUser(strconv.Itoa(i), defaultPassword)
+				numUsers += 1
+			}
+			numberOfKeys = len(userlib.KeystoreGetMap())
+			userlib.DebugMsg("Check if number of users linearly scale with number of keys")
+			Expect(numberOfKeys).To(BeIdenticalTo(numberOfKeysPerUser * numUsers))
+
+			for i := 1; i < 100; i++ {
+				invitationPtr, err := alice.CreateInvitation("1", strconv.Itoa(i))
+				Expect(err).To(BeNil())
+				user, err := client.GetUser(strconv.Itoa(i), defaultPassword)
+				Expect(err).To(BeNil())
+				err = user.AcceptInvitation("alice", invitationPtr, "1")
+				Expect(err).To(BeNil())
+			}
+
+			userlib.DebugMsg("Check if number of shares don't change number of keys")
+			numberOfKeys = len(userlib.KeystoreGetMap())
+			Expect(numberOfKeys).To(BeIdenticalTo(numberOfKeysPerUser * numUsers))
+
+			massiveContent := " "
+			i := 0
+			for i < 1000 {
+				massiveContent += "A"
+				i += 1
+			}
+
+			err = alice.AppendToFile("1", []byte(massiveContent))
+			Expect(err).To(BeNil())
+
+			numberOfKeys = len(userlib.KeystoreGetMap())
+			userlib.DebugMsg("Check if filesize doesn't change number of keys")
+			Expect(numberOfKeys).To(BeIdenticalTo(numberOfKeysPerUser * numUsers))
+		})
 		///////////////////////////////////////////////////////////////////////////////////////////
 
 		// Specify("Basic Test #10: Integrity compromised", func() {
