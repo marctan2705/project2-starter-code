@@ -423,29 +423,47 @@ var _ = Describe("Client Tests", func() {
 			Expect(err).To(BeNil())
 		})
 
-		Specify("Test 5.2 error 3: User struct cannot be obtained (integrity of user struct compromised)", func() {
-			userlib.DebugMsg("Initializing user Alice.")
-			alice, err = client.InitUser("alice", defaultPassword)
-			Expect(err).To(BeNil())
+		// Specify("Basic Test #10: Integrity compromised", func() {
+		// 	userlib.DebugMsg("Initializing Users Alice ")
+		// 	user, err := client.InitUser("Alice", defaultPassword)
+		// 	Expect(err).To(BeNil())
+		// 	Expect(user).ToNot(BeNil())
+		// 	userlib.DebugMsg("Making kkb ")
+		// 	user.StoreFile("kkb", []byte("rawr"))
+		// 	Expect(err).To(BeNil())
+		// 	for UUID := range userlib.DatastoreGetMap() {
+		// 		userlib.DatastoreSet(UUID, []byte("yoyoy"))
+		// 	}
+		// 	userlib.DebugMsg("Get kkb ")
+		// 	user.LoadFile("kkb")
+		// 	Expect(err).ToNot(BeNil())
+			
 
-			userlib.DebugMsg("Getting user Alice.")
-			aliceLaptop, err = client.GetUser("alice", defaultPassword)
-			Expect(err).To(BeNil())
+		// })
 
-			// changing Alice's userstruct
-			dataStoreMap := userlib.DatastoreGetMap()
-			for UUID := range dataStoreMap {
-				userlib.DatastoreSet(UUID, []byte(emptyString))
-			}
+		// Specify("Test 5.2 error 3: User struct cannot be obtained (integrity of user struct compromised)", func() {
+		// 	userlib.DebugMsg("Initializing user Alice.")
+		// 	alice, err = client.InitUser("alice", defaultPassword)
+		// 	Expect(err).To(BeNil())
 
-			userlib.DebugMsg("Getting user Alice on laptop after editing all user structs (Should return error).")
-			aliceLaptop, err = client.GetUser("alice", defaultPassword)
-			Expect(err).ToNot(BeNil())
+		// 	userlib.DebugMsg("Getting user Alice.")
+		// 	aliceLaptop, err = client.GetUser("alice", defaultPassword)
+		// 	Expect(err).To(BeNil())
 
-			userlib.DebugMsg("Getting user Alice after editing all user structs (Should return error).")
-			alice, err = client.GetUser("alice", defaultPassword)
-			Expect(err).ToNot(BeNil())
-		})
+		// 	// changing Alice's userstruct
+		// 	dataStoreMap := userlib.DatastoreGetMap()
+		// 	for UUID := range dataStoreMap {
+		// 		userlib.DatastoreSet(UUID, []byte(emptyString))
+		// 	}
+
+		// 	userlib.DebugMsg("Getting user Alice on laptop after editing all user structs (Should return error).")
+		// 	aliceLaptop, err = client.GetUser("alice", defaultPassword)
+		// 	Expect(err).ToNot(BeNil())
+
+		// 	userlib.DebugMsg("Getting user Alice after editing all user structs (Should return error).")
+		// 	alice, err = client.GetUser("alice", defaultPassword)
+		// 	Expect(err).ToNot(BeNil())
+		// })
 
 	})
 })
