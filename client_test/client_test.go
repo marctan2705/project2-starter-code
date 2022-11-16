@@ -471,15 +471,14 @@ var _ = Describe("Client Tests", func() {
 		// 	userlib.DebugMsg("Get kkb ")
 		// 	user.LoadFile("kkb")
 		// 	Expect(err).ToNot(BeNil())
-			
 
 		// })
 
-			// changing Alice's userstruct
-			// dataStoreMap := userlib.DatastoreGetMap()
-			// for UUID, value := range dataStoreMap {
-			// 	userlib.DatastoreSet(UUID, append(value, value...))
-			// }
+		// changing Alice's userstruct
+		// dataStoreMap := userlib.DatastoreGetMap()
+		// for UUID, value := range dataStoreMap {
+		// 	userlib.DatastoreSet(UUID, append(value, value...))
+		// }
 
 		// 	userlib.DebugMsg("Getting user Alice.")
 		// 	aliceLaptop, err = client.GetUser("alice", defaultPassword)
@@ -499,6 +498,48 @@ var _ = Describe("Client Tests", func() {
 		// 	alice, err = client.GetUser("alice", defaultPassword)
 		// 	Expect(err).ToNot(BeNil())
 		// })
+
+		Specify("Test: Changing FileContent and Keystruct, checking that LoadFile fails.", func() {
+			userlib.DebugMsg("Initializing user Alice.")
+			alice, err = client.InitUser("alice", defaultPassword)
+			Expect(err).To(BeNil())
+
+			dataStoreMap := userlib.DatastoreGetMap()
+			UUIDsBeforeStore := make(map[userlib.UUID][]byte)
+			for UUID, value := range dataStoreMap {
+				UUIDsBeforeStore[UUID] = value
+			}
+
+			differences := make(map[userlib.UUID][]byte)
+
+			userlib.DebugMsg("Storing file data: %s", contentOne)
+			err = alice.StoreFile(aliceFile, []byte(contentOne))
+			Expect(err).To(BeNil())
+
+			dataStoreMap = userlib.DatastoreGetMap()
+			for UUID, value := range dataStoreMap {
+				_, ok := UUIDsBeforeStore[UUID]
+				if !ok {
+					differences[UUID] = value
+				}
+			}
+
+			userlib.DebugMsg("Appending file data: %s", contentTwo)
+			err = alice.AppendToFile(aliceFile, []byte(contentTwo))
+			Expect(err).To(BeNil())
+
+			userlib.DebugMsg("Appending file data: %s", contentThree)
+			err = alice.AppendToFile(aliceFile, []byte(contentThree))
+			Expect(err).To(BeNil())
+
+			for UUID, value := range differences {
+				userlib.DatastoreSet(UUID, append(value, value...))
+			}
+
+			userlib.DebugMsg("Loading file...")
+			_, err := alice.LoadFile(aliceFile)
+			Expect(err).ToNot(BeNil())
+		})
 
 	})
 })
