@@ -15,6 +15,7 @@ import (
 	// A "dot" import is used here so that the functions in the ginko and gomega
 	// modules can be used without an identifier. For example, Describe() and
 	// Expect() instead of ginko.Describe() and gomega.Expect().
+
 	"github.com/google/uuid"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -389,9 +390,9 @@ var _ = Describe("Client Tests", func() {
 		})
 		Specify("Basic Test #7: empty username", func() {
 			userlib.DebugMsg("Initializing users \"\" ")
-			user, err := client.InitUser("", defaultPassword)
+			alice, err = client.InitUser("", defaultPassword)
 			Expect(err).ToNot(BeNil())
-			Expect(user).To(BeNil())
+			Expect(alice).To(BeNil())
 		})
 		Specify("Basic Test #8: wrong username", func() {
 			userlib.DebugMsg("Initializing Users Alice ")
@@ -440,48 +441,6 @@ var _ = Describe("Client Tests", func() {
 			}
 		})
 
-		// Specify("Basic Test #10: Integrity compromised", func() {
-		// 	userlib.DebugMsg("Initializing Users Alice ")
-		// 	user, err := client.InitUser("Alice", defaultPassword)
-		// 	Expect(err).To(BeNil())
-		// 	Expect(user).ToNot(BeNil())
-		// 	userlib.DebugMsg("Making kkb ")
-		// 	user.StoreFile("kkb", []byte("rawr"))
-		// 	Expect(err).To(BeNil())
-		// 	for UUID := range userlib.DatastoreGetMap() {
-		// 		userlib.DatastoreSet(UUID, []byte("yoyoy"))
-		// 	}
-		// 	userlib.DebugMsg("Get kkb ")
-		// 	user.LoadFile("kkb")
-		// 	Expect(err).ToNot(BeNil())
-
-		// })
-
-		// changing Alice's userstruct
-		// dataStoreMap := userlib.DatastoreGetMap()
-		// for UUID, value := range dataStoreMap {
-		// 	userlib.DatastoreSet(UUID, append(value, value...))
-		// }
-
-		// 	userlib.DebugMsg("Getting user Alice.")
-		// 	aliceLaptop, err = client.GetUser("alice", defaultPassword)
-		// 	Expect(err).To(BeNil())
-
-		// 	// changing Alice's userstruct
-		// 	dataStoreMap := userlib.DatastoreGetMap()
-		// 	for UUID := range dataStoreMap {
-		// 		userlib.DatastoreSet(UUID, []byte(emptyString))
-		// 	}
-
-		// 	userlib.DebugMsg("Getting user Alice on laptop after editing all user structs (Should return error).")
-		// 	aliceLaptop, err = client.GetUser("alice", defaultPassword)
-		// 	Expect(err).ToNot(BeNil())
-
-		// 	userlib.DebugMsg("Getting user Alice after editing all user structs (Should return error).")
-		// 	alice, err = client.GetUser("alice", defaultPassword)
-		// 	Expect(err).ToNot(BeNil())
-		// })
-
 		Specify("Test: Changing FileContent and Keystruct, checking that LoadFile fails.", func() {
 			userlib.DebugMsg("Initializing user Alice.")
 			alice, err = client.InitUser("alice", defaultPassword)
@@ -523,6 +482,49 @@ var _ = Describe("Client Tests", func() {
 			_, err := alice.LoadFile(aliceFile)
 			Expect(err).ToNot(BeNil())
 		})
+		///////////////////////////////////////////////////////////////////////////////////////////
+
+		// Specify("Basic Test #10: Integrity compromised", func() {
+		// 	userlib.DebugMsg("Initializing Users Alice ")
+		// 	user, err := client.InitUser("Alice", defaultPassword)
+		// 	Expect(err).To(BeNil())
+		// 	Expect(user).ToNot(BeNil())
+		// 	userlib.DebugMsg("Making kkb ")
+		// 	user.StoreFile("kkb", []byte("rawr"))
+		// 	Expect(err).To(BeNil())
+		// 	for UUID := range userlib.DatastoreGetMap() {
+		// 		userlib.DatastoreSet(UUID, []byte("yoyoy"))
+		// 	}
+		// 	userlib.DebugMsg("Get kkb ")
+		// 	user.LoadFile("kkb")
+		// 	Expect(err).ToNot(BeNil())
+
+		// })
+
+		// changing Alice's userstruct
+		// dataStoreMap := userlib.DatastoreGetMap()
+		// for UUID, value := range dataStoreMap {
+		// 	userlib.DatastoreSet(UUID, append(value, value...))
+		// }
+
+		// 	userlib.DebugMsg("Getting user Alice.")
+		// 	aliceLaptop, err = client.GetUser("alice", defaultPassword)
+		// 	Expect(err).To(BeNil())
+
+		// 	// changing Alice's userstruct
+		// 	dataStoreMap := userlib.DatastoreGetMap()
+		// 	for UUID := range dataStoreMap {
+		// 		userlib.DatastoreSet(UUID, []byte(emptyString))
+		// 	}
+
+		// 	userlib.DebugMsg("Getting user Alice on laptop after editing all user structs (Should return error).")
+		// 	aliceLaptop, err = client.GetUser("alice", defaultPassword)
+		// 	Expect(err).ToNot(BeNil())
+
+		// 	userlib.DebugMsg("Getting user Alice after editing all user structs (Should return error).")
+		// 	alice, err = client.GetUser("alice", defaultPassword)
+		// 	Expect(err).ToNot(BeNil())
+		// })
 
 	})
 })
