@@ -8,7 +8,7 @@ import (
 	// about unused imports.
 	_ "encoding/hex"
 	_ "errors"
-	_ "strconv"
+	"strconv"
 	_ "strings"
 	"testing"
 
@@ -422,6 +422,24 @@ var _ = Describe("Client Tests", func() {
 			user.LoadFile("kukubird")
 			Expect(err).To(BeNil())
 		})
+		Specify("Basic Test #11: Upload a ton of keys and it should still work", func() {
+			userlib.DebugMsg("Initializing Users Alice ")
+			alice, err := client.InitUser("Alice", defaultPassword)
+			Expect(err).To(BeNil())
+			Expect(alice).ToNot(BeNil())
+			userlib.DebugMsg("Store files ")
+			for i := 1; i < 1000; i++{
+				// userlib.DebugMsg(strconv.Itoa(i))
+				alice.StoreFile(strconv.Itoa(i), []byte(strconv.Itoa(i)))
+			}
+			for j := 1; j < 1000; j++{
+				// userlib.DebugMsg(strconv.Itoa(j))
+				data, err := alice.LoadFile(strconv.Itoa(j))
+				Expect(data).To(Equal([]byte(strconv.Itoa(j))))
+				Expect(err).To(BeNil())
+			}
+		})
+		
 
 		// Specify("Basic Test #10: Integrity compromised", func() {
 		// 	userlib.DebugMsg("Initializing Users Alice ")
@@ -441,10 +459,11 @@ var _ = Describe("Client Tests", func() {
 
 		// })
 
-		// Specify("Test 5.2 error 3: User struct cannot be obtained (integrity of user struct compromised)", func() {
-		// 	userlib.DebugMsg("Initializing user Alice.")
-		// 	alice, err = client.InitUser("alice", defaultPassword)
-		// 	Expect(err).To(BeNil())
+			// changing Alice's userstruct
+			// dataStoreMap := userlib.DatastoreGetMap()
+			// for UUID, value := range dataStoreMap {
+			// 	userlib.DatastoreSet(UUID, append(value, value...))
+			// }
 
 		// 	userlib.DebugMsg("Getting user Alice.")
 		// 	aliceLaptop, err = client.GetUser("alice", defaultPassword)
