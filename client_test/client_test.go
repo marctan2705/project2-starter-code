@@ -246,20 +246,20 @@ var _ = Describe("Client Tests", func() {
 		})
 		Specify("Basic Test: Testing Unique Username Functionality", func() {
 			userlib.DebugMsg("Inititalising Alice")
-			alicedata, err := client.InitUser("Alice", "12345678")
-			print(alicedata)
+			alice, err = client.InitUser("Alice", "12345678")
+			// print(alicedata)
 			Expect(err).To(BeNil())
-			alicedata, err = client.InitUser("Alice", "12345678")
-			print(alicedata)
+			bob, err = client.InitUser("Alice", "12345678")
+			// print(alicedata)
 			Expect(err).ToNot(BeNil())
 		})
 		Specify("Basic Test: Testing Case Sensitive Functionality", func() {
 			userlib.DebugMsg("Inititalising alice")
-			alicedata, err := client.InitUser("alice", "12345678")
-			print(alicedata)
+			alice, err = client.InitUser("alice", "12345678")
+			// print(alicedata)
 			Expect(err).To(BeNil())
-			Alicedata, err := client.InitUser("Alice", "12345678")
-			print(Alicedata)
+			_, err := client.InitUser("Alice", "12345678")
+			// print(Alicedata)
 			Expect(err).To(BeNil())
 			alicedatacheck, ok := userlib.DatastoreGet(uuid.Must(uuid.FromBytes(userlib.Hash([]byte("alice"))[:16])))
 			print(alicedatacheck)
@@ -429,11 +429,11 @@ var _ = Describe("Client Tests", func() {
 			Expect(err).To(BeNil())
 			Expect(alice).ToNot(BeNil())
 			userlib.DebugMsg("Store files ")
-			for i := 1; i < 1000; i++{
+			for i := 1; i < 1000; i++ {
 				userlib.DebugMsg(strconv.Itoa(i))
 				alice.StoreFile(strconv.Itoa(i), []byte(strconv.Itoa(i)))
 			}
-			for j := 1; j < 1000; j++{
+			for j := 1; j < 1000; j++ {
 				userlib.DebugMsg(strconv.Itoa(j))
 				data, err := alice.LoadFile(strconv.Itoa(j))
 				Expect(data).To(Equal([]byte(strconv.Itoa(j))))
@@ -447,7 +447,7 @@ var _ = Describe("Client Tests", func() {
 			Expect(alice).ToNot(BeNil())
 			alice.StoreFile("file", []byte("yo"))
 			userlib.DebugMsg("Store files ")
-			for i := 1; i < 1000; i++{
+			for i := 1; i < 1000; i++ {
 				// userlib.DebugMsg(strconv.Itoa(i))
 				err = alice.AppendToFile("file", []byte("yo"))
 				Expect(err).To(BeNil())
@@ -456,7 +456,6 @@ var _ = Describe("Client Tests", func() {
 			print(data)
 			Expect(err).To(BeNil())
 		})
-		
 
 		Specify("Test: Changing FileContent and Keystruct, checking that LoadFile fails.", func() {
 			userlib.DebugMsg("Initializing user Alice.")
