@@ -429,17 +429,34 @@ var _ = Describe("Client Tests", func() {
 			Expect(err).To(BeNil())
 			Expect(alice).ToNot(BeNil())
 			userlib.DebugMsg("Store files ")
-			for i := 1; i < 1000; i++ {
-				// userlib.DebugMsg(strconv.Itoa(i))
+			for i := 1; i < 1000; i++{
+				userlib.DebugMsg(strconv.Itoa(i))
 				alice.StoreFile(strconv.Itoa(i), []byte(strconv.Itoa(i)))
 			}
-			for j := 1; j < 1000; j++ {
-				// userlib.DebugMsg(strconv.Itoa(j))
+			for j := 1; j < 1000; j++{
+				userlib.DebugMsg(strconv.Itoa(j))
 				data, err := alice.LoadFile(strconv.Itoa(j))
 				Expect(data).To(Equal([]byte(strconv.Itoa(j))))
 				Expect(err).To(BeNil())
 			}
 		})
+		Specify("Basic Test #11: Upload a ton of keys and it should still work", func() {
+			userlib.DebugMsg("Initializing Users Alice ")
+			alice, err := client.InitUser("Alice", defaultPassword)
+			Expect(err).To(BeNil())
+			Expect(alice).ToNot(BeNil())
+			alice.StoreFile("file", []byte("yo"))
+			userlib.DebugMsg("Store files ")
+			for i := 1; i < 1000; i++{
+				// userlib.DebugMsg(strconv.Itoa(i))
+				err = alice.AppendToFile("file", []byte("yo"))
+				Expect(err).To(BeNil())
+			}
+			data, err := alice.LoadFile("file")
+			print(data)
+			Expect(err).To(BeNil())
+		})
+		
 
 		Specify("Test: Changing FileContent and Keystruct, checking that LoadFile fails.", func() {
 			userlib.DebugMsg("Initializing user Alice.")
