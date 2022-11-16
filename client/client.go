@@ -300,6 +300,9 @@ func GetUser(username string, password string) (userdataptr *User, err error) {
 	if !ok {
 		return nil, errors.New("cannot find")
 	}
+	if len(cipher) < 64 {
+		return nil, errors.New("length of return value too short, probably tampered with")
+	}
 	decFile, err := decrypt(key, cipher[64:], cipher[:64])
 	if err != nil {
 		return nil, err
@@ -331,6 +334,9 @@ func (userdata *User) StoreFile(filename string, content []byte) (err error) {
 	if !ok {
 		return errors.New("not found")
 	}
+	if len(ACenc) < 64 {
+		return errors.New("length of return value too short, probably tampered with")
+	}
 	ACdec, err := decrypt(userdata.ACKey, ACenc[64:], ACenc[:64])
 	if err != nil {
 		return nil
@@ -347,6 +353,9 @@ func (userdata *User) StoreFile(filename string, content []byte) (err error) {
 		keyStructd, ok := userlib.DatastoreGet(keyStructUUID)
 		if !ok {
 			return errors.New("not found")
+		}
+		if len(keyStructd) < 64 {
+			return errors.New("length of return value too short, probably tampered with")
 		}
 		keystructdec, err := decrypt(keyStructKey, keyStructd[64:], keyStructd[:64])
 		if err != nil {
@@ -428,6 +437,9 @@ func (userdata *User) AppendToFile(filename string, content []byte) error {
 	if !ok {
 		return errors.New("not found")
 	}
+	if len(ACenc) < 64 {
+		return errors.New("length of return value too short, probably tampered with")
+	}
 	ACdec, err := decrypt(userdata.ACKey, ACenc[64:], ACenc[:64])
 	if err != nil {
 		return errors.New("can't decrypt accesscontrol struct")
@@ -451,6 +463,9 @@ func (userdata *User) AppendToFile(filename string, content []byte) error {
 	if !ok {
 		return errors.New("can't find keystruct in datastore")
 	}
+	if len(keyStructEncryptedJSON) < 64 {
+		return errors.New("length of return value too short, probably tampered with")
+	}
 	keyStructDecryptedJSON, err := decrypt(keyStructKey, keyStructEncryptedJSON[64:], keyStructEncryptedJSON[:64])
 	if err != nil {
 		return err
@@ -465,6 +480,9 @@ func (userdata *User) AppendToFile(filename string, content []byte) error {
 	fileContentEncryptedJSON, ok := userlib.DatastoreGet(filenameKeyStruct.FileUUID)
 	if !ok {
 		return errors.New("can't find filecontent from datastore")
+	}
+	if len(keyStructEncryptedJSON) < 64 {
+		return errors.New("length of return value too short, probably tampered with")
 	}
 	fileContentDecryptedJSON, err := decrypt(filenameKeyStruct.Key, fileContentEncryptedJSON[64:], fileContentEncryptedJSON[:64])
 	if err != nil {
@@ -511,6 +529,9 @@ func (userdata *User) LoadFile(filename string) (content []byte, err error) {
 	if !ok {
 		return nil, errors.New("not found")
 	}
+	if len(ACenc) < 64 {
+		return nil, errors.New("length of return value too short, probably tampered with")
+	}
 	ACdec, err := decrypt(userdata.ACKey, ACenc[64:], ACenc[:64])
 	if err != nil {
 		return nil, errors.New("can't decrypt accesscontrol struct")
@@ -534,6 +555,9 @@ func (userdata *User) LoadFile(filename string) (content []byte, err error) {
 	if !ok {
 		return nil, errors.New("can't find keystruct in datastore")
 	}
+	if len(keyStructEncryptedJSON) < 64 {
+		return nil, errors.New("length of return value too short, probably tampered with")
+	}
 	keyStructDecryptedJSON, err := decrypt(keyStructKey, keyStructEncryptedJSON[64:], keyStructEncryptedJSON[:64])
 	if err != nil {
 		return nil, err
@@ -548,6 +572,9 @@ func (userdata *User) LoadFile(filename string) (content []byte, err error) {
 	fileContentEncryptedJSON, ok := userlib.DatastoreGet(filenameKeyStruct.FileUUID)
 	if !ok {
 		return nil, errors.New("can't find filecontent from datastore")
+	}
+	if len(fileContentEncryptedJSON) < 64 {
+		return nil, errors.New("length of return value too short, probably tampered with")
 	}
 	fileContentDecryptedJSON, err := decrypt(filenameKeyStruct.Key, fileContentEncryptedJSON[64:], fileContentEncryptedJSON[:64])
 	if err != nil {
@@ -565,6 +592,9 @@ func (userdata *User) LoadFile(filename string) (content []byte, err error) {
 		curBlockEncryptedJSON, ok := userlib.DatastoreGet(curBlockUUID)
 		if !ok {
 			return nil, errors.New("last block not found in datastore")
+		}
+		if len(curBlockEncryptedJSON) < 64 {
+			return nil, errors.New("length of return value too short, probably tampered with")
 		}
 		curBlockDecryptedJSON, err := decrypt(curBlockKey, curBlockEncryptedJSON[64:], curBlockEncryptedJSON[:64])
 		if err != nil {
@@ -602,6 +632,9 @@ func (userdata *User) CreateInvitation(filename string, recipientUsername string
 	if !ok {
 		return uuid.Nil, errors.New("inviter's accesscontrol not found")
 	}
+	if len(ACenc) < 64 {
+		return uuid.Nil, errors.New("length of return value too short, probably tampered with")
+	}
 	ACdec, err := decrypt(userdata.ACKey, ACenc[64:], ACenc[:64])
 	if err != nil {
 		return uuid.Nil, errors.New("can't decrypt inviter's accesscontrol")
@@ -623,9 +656,12 @@ func (userdata *User) CreateInvitation(filename string, recipientUsername string
 	// check if recipient username in datastore
 	hashedRecipientUsername := userlib.Hash([]byte(recipientUsername))[:16]
 	recipientUUID := uuid.Must(uuid.FromBytes(hashedRecipientUsername))
-	_, ok = userlib.DatastoreGet(recipientUUID)
+	recipientEncrypted, ok := userlib.DatastoreGet(recipientUUID)
 	if !ok {
 		return uuid.Nil, errors.New("recipient username not in datastore")
+	}
+	if len(recipientEncrypted) < 64 {
+		return uuid.Nil, errors.New("length of return value too short, probably tampered with")
 	}
 
 	_, ok = AC.OwnedFiles[filename]
@@ -666,6 +702,9 @@ func (userdata *User) CreateInvitation(filename string, recipientUsername string
 		keyStructEncryptedJSON, ok := userlib.DatastoreGet(keyStructUUID)
 		if !ok {
 			return uuid.Nil, errors.New("can't find keystruct in datastore")
+		}
+		if len(keyStructEncryptedJSON) < 64 {
+			return uuid.Nil, errors.New("length of return value too short, probably tampered with")
 		}
 		keyStructDecryptedJSON, err := decrypt(keyStructKey, keyStructEncryptedJSON[64:], keyStructEncryptedJSON[:64])
 		if err != nil {
@@ -723,6 +762,9 @@ func (userdata *User) AcceptInvitation(senderUsername string, invitationPtr uuid
 	if !ok {
 		return errors.New("invitee's accesscontrol not found")
 	}
+	if len(ACenc) < 64 {
+		return errors.New("length of return value too short, probably tampered with")
+	}
 	ACdec, err := decrypt(userdata.ACKey, ACenc[64:], ACenc[:64])
 	if err != nil {
 		return err
@@ -741,6 +783,9 @@ func (userdata *User) AcceptInvitation(senderUsername string, invitationPtr uuid
 	invitationEncrypted, ok := userlib.DatastoreGet(invitationPtr)
 	if !ok {
 		return errors.New("can't find invitationptr in datastore")
+	}
+	if len(invitationEncrypted) < 256 {
+		return errors.New("length of return value too short, probably tampered with")
 	}
 	// userlib.KeystoreSet(username+" PKEEncKey", PKEEncKey)
 	// userlib.KeystoreSet(username+" DSVerifyKey", DSVerifyKey)
@@ -761,9 +806,12 @@ func (userdata *User) AcceptInvitation(senderUsername string, invitationPtr uuid
 	}
 
 	// check if invitation is still valid (i.e. keystruct still exists)
-	_, ok = userlib.DatastoreGet(invitation.KeyStructUUID)
+	keyStructEncrypted, ok := userlib.DatastoreGet(invitation.KeyStructUUID)
 	if !ok {
 		return errors.New("can't find keystruct of shared file in datastore")
+	}
+	if len(keyStructEncrypted) < 64 {
+		return errors.New("length of return value too short, probably tampered with")
 	}
 
 	// update invitee's AC to reflect the new UUID/key of the shared file's keystruct
@@ -784,6 +832,9 @@ func (userdata *User) RevokeAccess(filename string, recipientUsername string) er
 	ACenc, ok := userlib.DatastoreGet(ACUUID)
 	if !ok {
 		return errors.New("not found")
+	}
+	if len(ACenc) < 64 {
+		return errors.New("length of return value too short, probably tampered with")
 	}
 	ACdec, err := decrypt(userdata.ACKey, ACenc[64:], ACenc[:64])
 	if err != nil {
@@ -808,6 +859,9 @@ func (userdata *User) RevokeAccess(filename string, recipientUsername string) er
 	if !ok {
 		return errors.New("can't find keystruct in datastore")
 	}
+	if len(keyStructEncryptedJSON) < 64 {
+		return errors.New("length of return value too short, probably tampered with")
+	}
 	keyStructDecryptedJSON, err := decrypt(keyStructKey, keyStructEncryptedJSON[64:], keyStructEncryptedJSON[:64])
 	if err != nil {
 		return err
@@ -822,6 +876,9 @@ func (userdata *User) RevokeAccess(filename string, recipientUsername string) er
 	fileContentEncryptedJSON, ok := userlib.DatastoreGet(filenameKeyStruct.FileUUID)
 	if !ok {
 		return errors.New("can't find filecontent from datastore")
+	}
+	if len(fileContentEncryptedJSON) < 64 {
+		return errors.New("length of return value too short, probably tampered with")
 	}
 	fileContentDecryptedJSON, err := decrypt(filenameKeyStruct.Key, fileContentEncryptedJSON[64:], fileContentEncryptedJSON[:64])
 	if err != nil {
@@ -854,7 +911,12 @@ func (userdata *User) RevokeAccess(filename string, recipientUsername string) er
 			userlist = append(userlist, a)
 			print(index)
 			dataenc, ok := userlib.DatastoreGet(AC.InvitationAccessMap[filenameusername])
-			print(ok)
+			if !ok {
+				return errors.New("can't find shared keystruct uuid in datastore")
+			}
+			if len(dataenc) < 64 {
+				return errors.New("length of return value too short, probably tampered with")
+			}
 			data, err := decrypt(AC.InvitationKeyMap[filenameusername], dataenc[64:], dataenc[:64])
 			if err != nil {
 				return err
