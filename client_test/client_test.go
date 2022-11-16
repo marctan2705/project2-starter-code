@@ -428,18 +428,17 @@ var _ = Describe("Client Tests", func() {
 			Expect(err).To(BeNil())
 			Expect(alice).ToNot(BeNil())
 			userlib.DebugMsg("Store files ")
-			for i := 1; i < 1000; i++{
+			for i := 1; i < 1000; i++ {
 				// userlib.DebugMsg(strconv.Itoa(i))
 				alice.StoreFile(strconv.Itoa(i), []byte(strconv.Itoa(i)))
 			}
-			for j := 1; j < 1000; j++{
+			for j := 1; j < 1000; j++ {
 				// userlib.DebugMsg(strconv.Itoa(j))
 				data, err := alice.LoadFile(strconv.Itoa(j))
 				Expect(data).To(Equal([]byte(strconv.Itoa(j))))
 				Expect(err).To(BeNil())
 			}
 		})
-		
 
 		// Specify("Basic Test #10: Integrity compromised", func() {
 		// 	userlib.DebugMsg("Initializing Users Alice ")
@@ -455,15 +454,14 @@ var _ = Describe("Client Tests", func() {
 		// 	userlib.DebugMsg("Get kkb ")
 		// 	user.LoadFile("kkb")
 		// 	Expect(err).ToNot(BeNil())
-			
 
 		// })
 
-			// changing Alice's userstruct
-			// dataStoreMap := userlib.DatastoreGetMap()
-			// for UUID, value := range dataStoreMap {
-			// 	userlib.DatastoreSet(UUID, append(value, value...))
-			// }
+		// changing Alice's userstruct
+		// dataStoreMap := userlib.DatastoreGetMap()
+		// for UUID, value := range dataStoreMap {
+		// 	userlib.DatastoreSet(UUID, append(value, value...))
+		// }
 
 		// 	userlib.DebugMsg("Getting user Alice.")
 		// 	aliceLaptop, err = client.GetUser("alice", defaultPassword)
@@ -484,7 +482,7 @@ var _ = Describe("Client Tests", func() {
 		// 	Expect(err).ToNot(BeNil())
 		// })
 
-		Specify("Basic Test: Testing Single User Store/Load/Append.", func() {
+		Specify("Test: Changing FileContent and Keystruct, checking that LoadFile fails.", func() {
 			userlib.DebugMsg("Initializing user Alice.")
 			alice, err = client.InitUser("alice", defaultPassword)
 			Expect(err).To(BeNil())
