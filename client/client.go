@@ -6,6 +6,7 @@ package client
 // may break the autograder!
 
 import (
+	"encoding/hex"
 	"encoding/json"
 
 	userlib "github.com/cs161-staff/project2-userlib"
@@ -724,7 +725,8 @@ func (userdata *User) CreateInvitation(filename string, recipientUsername string
 
 		// adding the recipientusername to AC.InvitationNameMap, & the UUIDs/keys to the keystruct that we shared
 		AC.InvitationNameMap[filename] = append(AC.InvitationNameMap[filename], recipientUsername)
-		filenameusername := filename + "🍆" + recipientUsername
+		// filenameusername := filename + "🍆" + recipientUsername
+		filenameusername := hex.EncodeToString(userlib.Hash([]byte(filename))) + hex.EncodeToString(userlib.Hash([]byte(recipientUsername)))
 		AC.InvitationAccessMap[filenameusername] = newKeyStructUUID
 		AC.InvitationKeyMap[filenameusername] = newKeyStructKey
 
@@ -902,9 +904,12 @@ func (userdata *User) RevokeAccess(filename string, recipientUsername string) er
 	userlist := make([]string, 0)
 	for index, a := range AC.InvitationNameMap[filename] {
 		// filenameusername := filename + a
-		filenameusername := filename + "🍆" + a
+		// filenameusername := filename + "🍆" + a
+		filenameusername := hex.EncodeToString(userlib.Hash([]byte(filename))) + hex.EncodeToString(userlib.Hash([]byte(a)))
+		userlib.DebugMsg("usernamefilename:", filenameusername)
+		fmt.Println("a:", a, "recipientUsername:", recipientUsername)
 		if a == recipientUsername {
-			userlib.DebugMsg(a)
+			userlib.DebugMsg("WOOOO", a)
 			userlib.DatastoreDelete(AC.InvitationAccessMap[filenameusername])
 			// userlib.DebugMsg(a)
 		} else {

@@ -430,11 +430,11 @@ var _ = Describe("Client Tests", func() {
 			Expect(alice).ToNot(BeNil())
 			userlib.DebugMsg("Store files ")
 			for i := 1; i < 1000; i++ {
-				userlib.DebugMsg(strconv.Itoa(i))
+				// userlib.DebugMsg(strconv.Itoa(i))
 				alice.StoreFile(strconv.Itoa(i), []byte(strconv.Itoa(i)))
 			}
 			for j := 1; j < 1000; j++ {
-				userlib.DebugMsg(strconv.Itoa(j))
+				// userlib.DebugMsg(strconv.Itoa(j))
 				data, err := alice.LoadFile(strconv.Itoa(j))
 				Expect(data).To(Equal([]byte(strconv.Itoa(j))))
 				Expect(err).To(BeNil())
@@ -508,6 +508,15 @@ var _ = Describe("Client Tests", func() {
 			Expect(err).ToNot(BeNil())
 			print(alice2)
 		})
+
+		// Specify("Test: Check number of keys in keystore is O(n), n = number of users", func() {
+		// 	userlib.DebugMsg("Initializing user Alice.")
+		// 	alice, err = client.InitUser("alice", defaultPassword)
+		// 	Expect(err).To(BeNil())
+		// 	numberOfKeysPerUser := len(userlib.KeystoreGetMap())
+
+		// 	for i
+		// })
 		///////////////////////////////////////////////////////////////////////////////////////////
 
 		// Specify("Basic Test #10: Integrity compromised", func() {
