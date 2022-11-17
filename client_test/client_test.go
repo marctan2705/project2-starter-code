@@ -798,6 +798,30 @@ var _ = Describe("Client Tests", func() {
 
 		})
 
+		Specify("Test: Check if append takes linear time wrt. size of append", func() {
+			userlib.DebugMsg("Initializing user Alice.")
+			alice, err = client.InitUser("alice", defaultPassword)
+			Expect(err).To(BeNil())
+
+			err = alice.StoreFile("file", []byte(contentOne))
+			Expect(err).To(BeNil())
+
+			beforeAppend := userlib.DatastoreGetBandwidth()
+			err = alice.AppendToFile("file", []byte(contentOne))
+			Expect(err).To(BeNil())
+			afterAppend := userlib.DatastoreGetBandwidth()
+			benchmark := afterAppend - beforeAppend
+
+			for i := 0; i < 100; i++ {
+				beforeAppend = userlib.DatastoreGetBandwidth()
+				err = alice.AppendToFile("file", []byte(contentOne))
+				Expect(err).To(BeNil())
+				afterAppend = userlib.DatastoreGetBandwidth()
+				bandwidth := afterAppend - beforeAppend
+				Expect(bandwidth).To(Equal(benchmark))
+			}
+		})
+
 		// Specify("Test: Access from different log ins at once", func() {
 		// 	userlib.DebugMsg("Initializing user Alice.")
 		// 	alice, err := client.InitUser("alice", defaultPassword)
