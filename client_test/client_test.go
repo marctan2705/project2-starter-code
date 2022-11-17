@@ -533,6 +533,38 @@ var _ = Describe("Client Tests", func() {
 			Expect(err).ToNot(BeNil())
 		})
 
+		Specify("Test: Trying to revoke uninvited user throws error", func() {
+			userlib.DebugMsg("Initializing user Alice.")
+			alice, err := client.InitUser("alice", defaultPassword)
+			Expect(err).To(BeNil())
+			print(alice)
+			bob, err := client.InitUser("bob", defaultPassword)
+			Expect(err).To(BeNil())
+			print(bob)
+			alice.StoreFile("file", []byte("rejhfehwrf"))
+			err = alice.RevokeAccess("file", "bob")
+			Expect(err).ToNot(BeNil())
+		})
+
+		Specify("Test: Trying to accept revoked invitiationthrows error", func() {
+			userlib.DebugMsg("Initializing user Alice.")
+			alice, err := client.InitUser("alice", defaultPassword)
+			Expect(err).To(BeNil())
+			print(alice)
+			bob, err := client.InitUser("bob", defaultPassword)
+			Expect(err).To(BeNil())
+			print(bob)
+			alice.StoreFile("file", []byte("rejhfehwrf"))
+			testuuid, err := alice.CreateInvitation("file", "bob")
+			Expect(err).To(BeNil())
+			Expect(testuuid).ToNot(Equal(uuid.Nil))
+			err = alice.RevokeAccess("file", "bob")
+			Expect(err).To(BeNil())
+			err = bob.AcceptInvitation("alice", testuuid, "file2")
+			Expect(err).ToNot(BeNil())
+		})
+
+
 		// Specify("Test: Check number of keys in keystore is O(n), n = number of users", func() {
 		// 	userlib.DebugMsg("Initializing user Alice.")
 		// 	alice, err = client.InitUser("alice", defaultPassword)
