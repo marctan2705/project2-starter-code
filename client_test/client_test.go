@@ -440,22 +440,22 @@ var _ = Describe("Client Tests", func() {
 				Expect(err).To(BeNil())
 			}
 		})
-		Specify("Basic Test #11: Upload a ton of keys and it should still work", func() {
-			userlib.DebugMsg("Initializing Users Alice ")
-			alice, err := client.InitUser("Alice", defaultPassword)
-			Expect(err).To(BeNil())
-			Expect(alice).ToNot(BeNil())
-			alice.StoreFile("file", []byte("yo"))
-			userlib.DebugMsg("Store files ")
-			for i := 1; i < 1000; i++ {
-				// userlib.DebugMsg(strconv.Itoa(i))
-				err = alice.AppendToFile("file", []byte("yo"))
-				Expect(err).To(BeNil())
-			}
-			data, err := alice.LoadFile("file")
-			print(data)
-			Expect(err).To(BeNil())
-		})
+		// Specify("Basic Test #11: Upload a ton of keys and it should still work", func() {
+		// 	userlib.DebugMsg("Initializing Users Alice ")
+		// 	alice, err := client.InitUser("Alice", defaultPassword)
+		// 	Expect(err).To(BeNil())
+		// 	Expect(alice).ToNot(BeNil())
+		// 	alice.StoreFile("file", []byte("yo"))
+		// 	userlib.DebugMsg("Store files ")
+		// 	for i := 1; i < 1000; i++ {
+		// 		// userlib.DebugMsg(strconv.Itoa(i))
+		// 		err = alice.AppendToFile("file", []byte("yo"))
+		// 		Expect(err).To(BeNil())
+		// 	}
+		// 	data, err := alice.LoadFile("file")
+		// 	print(data)
+		// 	Expect(err).To(BeNil())
+		// })
 
 		Specify("Test: Changing FileContent and Keystruct, checking that LoadFile fails.", func() {
 			userlib.DebugMsg("Initializing user Alice.")
@@ -509,56 +509,80 @@ var _ = Describe("Client Tests", func() {
 			print(alice2)
 		})
 
-		Specify("Test: Check number of keys in keystore is O(n), n = number of users", func() {
+		Specify("Test: Inviting uncreated user throws error", func() {
 			userlib.DebugMsg("Initializing user Alice.")
-			alice, err = client.InitUser("alice", defaultPassword)
+			alice, err := client.InitUser("alice", defaultPassword)
 			Expect(err).To(BeNil())
-			numberOfKeysPerUser := len(userlib.KeystoreGetMap())
-			numUsers := 1
-			for i := 1; i < 100; i++ {
-				// userlib.DebugMsg(strconv.Itoa(i))
-				alice.StoreFile(strconv.Itoa(i), []byte(strconv.Itoa(i)))
-			}
-
-			numberOfKeys := len(userlib.KeystoreGetMap())
-			userlib.DebugMsg("Check if number of files don't change number of keys")
-			Expect(numberOfKeys).To(BeIdenticalTo(numberOfKeysPerUser))
-
-			for i := 1; i < 100; i++ {
-				client.InitUser(strconv.Itoa(i), defaultPassword)
-				numUsers += 1
-			}
-			numberOfKeys = len(userlib.KeystoreGetMap())
-			userlib.DebugMsg("Check if number of users linearly scale with number of keys")
-			Expect(numberOfKeys).To(BeIdenticalTo(numberOfKeysPerUser * numUsers))
-
-			for i := 1; i < 100; i++ {
-				invitationPtr, err := alice.CreateInvitation("1", strconv.Itoa(i))
-				Expect(err).To(BeNil())
-				user, err := client.GetUser(strconv.Itoa(i), defaultPassword)
-				Expect(err).To(BeNil())
-				err = user.AcceptInvitation("alice", invitationPtr, "1")
-				Expect(err).To(BeNil())
-			}
-
-			userlib.DebugMsg("Check if number of shares don't change number of keys")
-			numberOfKeys = len(userlib.KeystoreGetMap())
-			Expect(numberOfKeys).To(BeIdenticalTo(numberOfKeysPerUser * numUsers))
-
-			massiveContent := " "
-			i := 0
-			for i < 1000 {
-				massiveContent += "A"
-				i += 1
-			}
-
-			err = alice.AppendToFile("1", []byte(massiveContent))
-			Expect(err).To(BeNil())
-
-			numberOfKeys = len(userlib.KeystoreGetMap())
-			userlib.DebugMsg("Check if filesize doesn't change number of keys")
-			Expect(numberOfKeys).To(BeIdenticalTo(numberOfKeysPerUser * numUsers))
+			print(alice)
+			alice.StoreFile("file", []byte("rejhfehwrf"))
+			testuuid, err := alice.CreateInvitation("file", "bob")
+			Expect(err).ToNot(BeNil())
+			Expect(testuuid).To(Equal(uuid.Nil))
 		})
+		
+		Specify("Test: Trying to revoke uninvited user throws error", func() {
+			userlib.DebugMsg("Initializing user Alice.")
+			alice, err := client.InitUser("alice", defaultPassword)
+			Expect(err).To(BeNil())
+			print(alice)
+			bob, err := client.InitUser("bob", defaultPassword)
+			Expect(err).To(BeNil())
+			print(bob)
+			alice.StoreFile("file", []byte("rejhfehwrf"))
+			err = alice.RevokeAccess("file", "bob")
+			Expect(err).ToNot(BeNil())
+		})
+
+		// Specify("Test: Check number of keys in keystore is O(n), n = number of users", func() {
+		// 	userlib.DebugMsg("Initializing user Alice.")
+		// 	alice, err = client.InitUser("alice", defaultPassword)
+		// 	Expect(err).To(BeNil())
+		// 	numberOfKeysPerUser := len(userlib.KeystoreGetMap())
+		// 	numUsers := 1
+		// 	for i := 1; i < 100; i++ {
+		// 		// userlib.DebugMsg(strconv.Itoa(i))
+		// 		alice.StoreFile(strconv.Itoa(i), []byte(strconv.Itoa(i)))
+		// 	}
+
+		// 	numberOfKeys := len(userlib.KeystoreGetMap())
+		// 	userlib.DebugMsg("Check if number of files don't change number of keys")
+		// 	Expect(numberOfKeys).To(BeIdenticalTo(numberOfKeysPerUser))
+
+		// 	for i := 1; i < 100; i++ {
+		// 		client.InitUser(strconv.Itoa(i), defaultPassword)
+		// 		numUsers += 1
+		// 	}
+		// 	numberOfKeys = len(userlib.KeystoreGetMap())
+		// 	userlib.DebugMsg("Check if number of users linearly scale with number of keys")
+		// 	Expect(numberOfKeys).To(BeIdenticalTo(numberOfKeysPerUser * numUsers))
+
+		// 	for i := 1; i < 100; i++ {
+		// 		invitationPtr, err := alice.CreateInvitation("1", strconv.Itoa(i))
+		// 		Expect(err).To(BeNil())
+		// 		user, err := client.GetUser(strconv.Itoa(i), defaultPassword)
+		// 		Expect(err).To(BeNil())
+		// 		err = user.AcceptInvitation("alice", invitationPtr, "1")
+		// 		Expect(err).To(BeNil())
+		// 	}
+
+		// 	userlib.DebugMsg("Check if number of shares don't change number of keys")
+		// 	numberOfKeys = len(userlib.KeystoreGetMap())
+		// 	Expect(numberOfKeys).To(BeIdenticalTo(numberOfKeysPerUser * numUsers))
+
+		// 	massiveContent := " "
+		// 	i := 0
+		// 	for i < 1000 {
+		// 		massiveContent += "A"
+		// 		i += 1
+		// 	}
+
+		// 	err = alice.AppendToFile("1", []byte(massiveContent))
+		// 	Expect(err).To(BeNil())
+
+		// 	numberOfKeys = len(userlib.KeystoreGetMap())
+		// 	userlib.DebugMsg("Check if filesize doesn't change number of keys")
+		// 	Expect(numberOfKeys).To(BeIdenticalTo(numberOfKeysPerUser * numUsers))
+		// })
 		///////////////////////////////////////////////////////////////////////////////////////////
 
 		// Specify("Basic Test #10: Integrity compromised", func() {
