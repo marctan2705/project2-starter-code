@@ -743,7 +743,7 @@ func (userdata *User) CreateInvitation(filename string, recipientUsername string
 	if err != nil {
 		return uuid.Nil, err
 	}
-	invitationPtr, err = uuid.FromBytes(userlib.Hash([]byte(hex.EncodeToString(userlib.Hash([]byte(filename))) + hex.EncodeToString(userlib.Hash([]byte(recipientUsername)))))[:16])
+	invitationPtr, err = uuid.FromBytes(userlib.Hash([]byte(hex.EncodeToString(userlib.Hash([]byte(userdata.Username)))+ hex.EncodeToString(userlib.Hash([]byte(filename))) + hex.EncodeToString(userlib.Hash([]byte(recipientUsername)))))[:16])
 	if err != nil{return uuid.Nil, err}
 	// userlib.KeystoreSet(username+" PKEEncKey", PKEEncKey)
 	// userlib.KeystoreSet(username+" DSVerifyKey", DSVerifyKey)
@@ -835,7 +835,7 @@ func (userdata *User) AcceptInvitation(senderUsername string, invitationPtr uuid
 
 func (userdata *User) RevokeAccess(filename string, recipientUsername string) error {
 	// delete invitation
-	invitationPtr, err := uuid.FromBytes([]byte(hex.EncodeToString(userlib.Hash([]byte(filename))) + hex.EncodeToString(userlib.Hash([]byte(recipientUsername))))[:16])
+	invitationPtr, err := uuid.FromBytes(userlib.Hash([]byte(hex.EncodeToString(userlib.Hash([]byte(userdata.Username)))+ hex.EncodeToString(userlib.Hash([]byte(filename))) + hex.EncodeToString(userlib.Hash([]byte(recipientUsername)))))[:16])
 	if err != nil{return err}
 	userlib.DatastoreDelete(invitationPtr)
 	
