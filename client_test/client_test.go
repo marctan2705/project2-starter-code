@@ -8,7 +8,7 @@ import (
 	// about unused imports.
 	_ "encoding/hex"
 	_ "errors"
-	_"strconv"
+	_ "strconv"
 	_ "strings"
 	"testing"
 
@@ -483,7 +483,7 @@ var _ = Describe("Client Tests", func() {
 			Expect(err).To(BeNil())
 			filecontent, err := bob.LoadFile("file")
 			Expect(err).To(BeNil())
-			Expect(filecontent).To(Equal([]byte(contentOne)))		
+			Expect(filecontent).To(Equal([]byte(contentOne)))
 
 		})
 		// Specify("Basic Test #11: Upload a ton of keys and it should still work", func() {
@@ -582,7 +582,7 @@ var _ = Describe("Client Tests", func() {
 			Expect(err).ToNot(BeNil())
 			Expect(testuuid).To(Equal(uuid.Nil))
 		})
-		
+
 		Specify("Test: Trying to revoke uninvited user throws error", func() {
 			userlib.DebugMsg("Initializing user Alice.")
 			alice, err := client.InitUser("alice", defaultPassword)
@@ -696,7 +696,7 @@ var _ = Describe("Client Tests", func() {
 			userlib.DebugMsg("alice creating invite for Bob.")
 			invite, err := alice.CreateInvitation("file", "bob")
 			Expect(err).To(BeNil())
-			
+
 			err = charles.AcceptInvitation("alice", invite, "file")
 			Expect(err).ToNot(BeNil())
 
@@ -720,7 +720,7 @@ var _ = Describe("Client Tests", func() {
 			userlib.DebugMsg("alice creating invite for Bob.")
 			invite, err := alice.CreateInvitation("file", "bob")
 			Expect(err).To(BeNil())
-			
+
 			err = charles.AcceptInvitation("charles", invite, "file")
 			Expect(err).ToNot(BeNil())
 
@@ -746,7 +746,58 @@ var _ = Describe("Client Tests", func() {
 			Expect(err).ToNot(BeNil())
 
 		})
-		
+
+		Specify("Test: Revoked User Adversary: Revoke Bob, then try to access file directly", func() {
+			userlib.DebugMsg("Initializing users Alice, Bob.")
+			alice, err = client.InitUser("alice", defaultPassword)
+			Expect(err).To(BeNil())
+
+			bob, err = client.InitUser("bob", defaultPassword)
+			Expect(err).To(BeNil())
+
+			userlib.DebugMsg("alice storing file %s with content: %s", "file", contentOne)
+			err = alice.StoreFile("file", []byte(contentOne))
+			Expect(err).To(BeNil())
+
+			dataStoreMap := userlib.DatastoreGetMap()
+			UUIDsBeforeStore := make(map[userlib.UUID][]byte)
+			for UUID, value := range dataStoreMap {
+				UUIDsBeforeStore[UUID] = value
+			}
+
+			differences := make(map[userlib.UUID][]byte)
+
+			userlib.DebugMsg("alice creating invite for Bob.")
+			invite, err := alice.CreateInvitation("file", "bob")
+			Expect(err).To(BeNil())
+			Expect(invite).ToNot(BeNil())
+
+			dataStoreMap = userlib.DatastoreGetMap()
+			for UUID, value := range dataStoreMap {
+				_, ok := UUIDsBeforeStore[UUID]
+				if !ok {
+					differences[UUID] = value
+				}
+			}
+
+			err = bob.AcceptInvitation("alice", invite, "file")
+			Expect(err).To(BeNil())
+
+			content, err := bob.LoadFile("file")
+			userlib.DatastoreGetMap()
+			Expect(err).To(BeNil())
+			Expect(content).To(BeEquivalentTo([]byte(contentOne)))
+
+			err = alice.RevokeAccess("file", "bob")
+			Expect(err).To(BeNil())
+
+			for UUID := range differences {
+				_, ok := userlib.DatastoreGet(UUID)
+				Expect(ok).To(BeFalse())
+			}
+
+		})
+
 		// Specify("Test: Access from different log ins at once", func() {
 		// 	userlib.DebugMsg("Initializing user Alice.")
 		// 	alice, err := client.InitUser("alice", defaultPassword)
@@ -772,7 +823,6 @@ var _ = Describe("Client Tests", func() {
 		// 	Expect(err).To(BeNil())
 		// 	Expect(content3).To(Equal(content))
 		// })
-
 
 		// Specify("Test: Check number of keys in keystore is O(n), n = number of users", func() {
 		// 	userlib.DebugMsg("Initializing user Alice.")
