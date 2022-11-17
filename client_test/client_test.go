@@ -702,6 +702,29 @@ var _ = Describe("Client Tests", func() {
 
 		})
 
+		Specify("Test: Cannot accept an invitation if user wrong", func() {
+			userlib.DebugMsg("Initializing users Alice, Bob, and Charles.")
+			alice, err = client.InitUser("alice", defaultPassword)
+			Expect(err).To(BeNil())
+
+			bob, err = client.InitUser("bob", defaultPassword)
+			Expect(err).To(BeNil())
+
+			charles, err = client.InitUser("charles", defaultPassword)
+			Expect(err).To(BeNil())
+
+			userlib.DebugMsg("alice storing file %s with content: %s", "file", contentOne)
+			err = alice.StoreFile("file", []byte(contentOne))
+			Expect(err).To(BeNil())
+
+			userlib.DebugMsg("alice creating invite for Bob.")
+			invite, err := alice.CreateInvitation("file", "bob")
+			Expect(err).To(BeNil())
+			
+			err = charles.AcceptInvitation("charles", invite, "file")
+			Expect(err).ToNot(BeNil())
+
+		})
 		
 		// Specify("Test: Access from different log ins at once", func() {
 		// 	userlib.DebugMsg("Initializing user Alice.")
