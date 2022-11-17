@@ -52,7 +52,7 @@ var _ = Describe("Client Tests", func() {
 	var alice *client.User
 	var bob *client.User
 	var charles *client.User
-	// var doris *client.User
+	var doris *client.User
 	// var eve *client.User
 	// var frank *client.User
 	// var grace *client.User
@@ -70,7 +70,7 @@ var _ = Describe("Client Tests", func() {
 	aliceFile := "aliceFile.txt"
 	bobFile := "bobFile.txt"
 	charlesFile := "charlesFile.txt"
-	// dorisFile := "dorisFile.txt"
+	dorisFile := "dorisFile.txt"
 	// eveFile := "eveFile.txt"
 	// frankFile := "frankFile.txt"
 	// graceFile := "graceFile.txt"
@@ -762,7 +762,7 @@ var _ = Describe("Client Tests", func() {
 			Expect(data).To(Equal([]byte(contentOne + contentTwo + contentThree)))
 
 			userlib.DebugMsg("Bob creating invite for Charles.")
-			invite2, err := bob.CreateInvitation(aliceFile, "charles")
+			invite2, err := bob.CreateInvitation(bobFile, "charles")
 			Expect(err).To(BeNil())
 
 			userlib.DebugMsg("Charles accepting invite from Bob under filename %s.", charlesFile)
