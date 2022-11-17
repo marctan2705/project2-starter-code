@@ -52,7 +52,7 @@ var _ = Describe("Client Tests", func() {
 	var alice *client.User
 	var bob *client.User
 	var charles *client.User
-	var doris *client.User
+	// var doris *client.User
 	// var eve *client.User
 	// var frank *client.User
 	// var grace *client.User
@@ -70,7 +70,7 @@ var _ = Describe("Client Tests", func() {
 	aliceFile := "aliceFile.txt"
 	bobFile := "bobFile.txt"
 	charlesFile := "charlesFile.txt"
-	dorisFile := "dorisFile.txt"
+	// dorisFile := "dorisFile.txt"
 	// eveFile := "eveFile.txt"
 	// frankFile := "frankFile.txt"
 	// graceFile := "graceFile.txt"
@@ -554,21 +554,12 @@ var _ = Describe("Client Tests", func() {
 			bob, err := client.InitUser("bob", defaultPassword)
 			Expect(err).To(BeNil())
 			print(bob)
-			alice.StoreFile("file", []byte("rejhfehwrf"))
-			err = alice.RevokeAccess("file", "bob")
-			Expect(err).ToNot(BeNil())
-		})
-
-		Specify("Test: Trying to revoke uninvited user throws error", func() {
-			userlib.DebugMsg("Initializing user Alice.")
-			alice, err := client.InitUser("alice", defaultPassword)
+			charles, err := client.InitUser("charles", defaultPassword)
 			Expect(err).To(BeNil())
-			print(alice)
-			bob, err := client.InitUser("bob", defaultPassword)
-			Expect(err).To(BeNil())
-			print(bob)
+			print(charles)
 			alice.StoreFile("file", []byte("rejhfehwrf"))
-			err = alice.RevokeAccess("file", "bob")
+			alice.CreateInvitation("file", "bob")
+			err = alice.RevokeAccess("file", "charles")
 			Expect(err).ToNot(BeNil())
 		})
 
@@ -673,158 +664,7 @@ var _ = Describe("Client Tests", func() {
 			Expect(err).ToNot(BeNil())
 
 		})
-		Specify("Basic Test: Testing Single User Multiple Login.", func() {
-			userlib.DebugMsg("Initializing user Alice.")
-			alice, err = client.InitUser("alice", defaultPassword)
-			Expect(err).To(BeNil())
 
-			userlib.DebugMsg("Get user Alice on phone.")
-			alicePhone, err = client.GetUser("alice", defaultPassword)
-			Expect(err).To(BeNil())
-
-			userlib.DebugMsg("Storing file data: %s", contentOne)
-			err = alicePhone.StoreFile(aliceFile, []byte(contentOne))
-			Expect(err).To(BeNil())
-
-			userlib.DebugMsg("Appending file data: %s", contentTwo)
-			err = alicePhone.AppendToFile(aliceFile, []byte(contentTwo))
-			Expect(err).To(BeNil())
-
-			userlib.DebugMsg("Get user Alice on laptop.")
-			aliceLaptop, err = client.GetUser("alice", defaultPassword)
-			Expect(err).To(BeNil())
-
-			userlib.DebugMsg("Appending file data: %s", contentThree)
-			err = aliceLaptop.AppendToFile(aliceFile, []byte(contentThree))
-			Expect(err).To(BeNil())
-
-			userlib.DebugMsg("Appending file data: %s", contentThree)
-			err = alicePhone.AppendToFile(aliceFile, []byte(contentThree))
-			Expect(err).To(BeNil())
-
-			userlib.DebugMsg("Loading file...")
-			data, err := aliceLaptop.LoadFile(aliceFile)
-			Expect(err).To(BeNil())
-			Expect(data).To(Equal([]byte(contentOne + contentTwo + contentThree + contentThree)))
-		})
-
-		Specify("Basic Test: Multiple Invite and sub-invites with revoke.", func() {
-			userlib.DebugMsg("Initializing users Alice (aliceDesktop), Bob, Charles and Doris.")
-			aliceDesktop, err = client.InitUser("alice", defaultPassword)
-			Expect(err).To(BeNil())
-
-			bob, err = client.InitUser("bob", defaultPassword)
-			Expect(err).To(BeNil())
-
-			charles, err = client.InitUser("charles", defaultPassword)
-			Expect(err).To(BeNil())
-
-			doris, err = client.InitUser("doris", defaultPassword)
-			Expect(err).To(BeNil())
-
-			userlib.DebugMsg("Getting second instance of Alice - aliceLaptop")
-			aliceLaptop, err = client.GetUser("alice", defaultPassword)
-			Expect(err).To(BeNil())
-
-			userlib.DebugMsg("aliceDesktop storing file %s with content: %s", aliceFile, contentOne)
-			err = aliceDesktop.StoreFile(aliceFile, []byte(contentOne))
-			Expect(err).To(BeNil())
-
-			userlib.DebugMsg("aliceLaptop creating invite for Bob.")
-			invite, err := aliceLaptop.CreateInvitation(aliceFile, "bob")
-			Expect(err).To(BeNil())
-
-			userlib.DebugMsg("Bob accepting invite from Alice under filename %s.", bobFile)
-			err = bob.AcceptInvitation("alice", invite, bobFile)
-			Expect(err).To(BeNil())
-
-			userlib.DebugMsg("Bob appending to file %s, content: %s", bobFile, contentTwo)
-			err = bob.AppendToFile(bobFile, []byte(contentTwo))
-			Expect(err).To(BeNil())
-
-			userlib.DebugMsg("aliceDesktop appending to file %s, content: %s", aliceFile, contentThree)
-			err = aliceDesktop.AppendToFile(aliceFile, []byte(contentThree))
-			Expect(err).To(BeNil())
-
-			userlib.DebugMsg("Checking that aliceDesktop sees expected file data.")
-			data, err := aliceDesktop.LoadFile(aliceFile)
-			Expect(err).To(BeNil())
-			Expect(data).To(Equal([]byte(contentOne + contentTwo + contentThree)))
-
-			userlib.DebugMsg("Checking that aliceLaptop sees expected file data.")
-			data, err = aliceLaptop.LoadFile(aliceFile)
-			Expect(err).To(BeNil())
-			Expect(data).To(Equal([]byte(contentOne + contentTwo + contentThree)))
-
-			userlib.DebugMsg("Checking that Bob sees expected file data.")
-			data, err = bob.LoadFile(bobFile)
-			Expect(err).To(BeNil())
-			Expect(data).To(Equal([]byte(contentOne + contentTwo + contentThree)))
-
-			userlib.DebugMsg("Bob creating invite for Charles.")
-			invite2, err := bob.CreateInvitation(bobFile, "charles")
-			Expect(err).To(BeNil())
-
-			userlib.DebugMsg("Charles accepting invite from Bob under filename %s.", charlesFile)
-			err = charles.AcceptInvitation("bob", invite2, charlesFile)
-			Expect(err).To(BeNil())
-
-			userlib.DebugMsg("aliceLaptop creating invite for Doris.")
-			invite3, err := aliceLaptop.CreateInvitation(aliceFile, "doris")
-			Expect(err).To(BeNil())
-
-			userlib.DebugMsg("Doris accepting invite from Alice under filename %s.", dorisFile)
-			err = doris.AcceptInvitation("alice", invite3, dorisFile)
-			Expect(err).To(BeNil())
-
-			userlib.DebugMsg("Checking that Doris can load the file after accepting the invite.")
-			data, err = doris.LoadFile(dorisFile)
-			Expect(err).To(BeNil())
-			Expect(data).To(Equal([]byte(contentOne + contentTwo + contentThree)))
-
-			userlib.DebugMsg("Checking that Doris can append to the file.")
-			err = doris.AppendToFile(dorisFile, []byte(contentOne))
-			Expect(err).To(BeNil())
-
-			data, err = doris.LoadFile(dorisFile)
-			Expect(err).To(BeNil())
-			Expect(data).To(Equal([]byte(contentOne + contentTwo + contentThree + contentOne)))
-
-			userlib.DebugMsg("Alice revoking Bob's access from %s.", aliceFile)
-			err = aliceLaptop.RevokeAccess(aliceFile, "bob")
-			Expect(err).To(BeNil())
-
-			userlib.DebugMsg("Checking that Alice/Doris can still load the file.")
-			data, err = aliceLaptop.LoadFile(aliceFile)
-			Expect(err).To(BeNil())
-			Expect(data).To(Equal([]byte(contentOne + contentTwo + contentThree + contentOne)))
-
-			data, err = doris.LoadFile(dorisFile)
-			Expect(err).To(BeNil())
-			Expect(data).To(Equal([]byte(contentOne + contentTwo + contentThree + contentOne)))
-
-			userlib.DebugMsg("Checking that Bob/Charles lost access to the file.")
-			_, err = bob.LoadFile(bobFile)
-			Expect(err).ToNot(BeNil())
-
-			_, err = charles.LoadFile(charlesFile)
-			Expect(err).ToNot(BeNil())
-
-			userlib.DebugMsg("Checking that the revoked users cannot append to the file.")
-			err = bob.AppendToFile(bobFile, []byte(contentTwo))
-			Expect(err).ToNot(BeNil())
-
-			err = charles.AppendToFile(charlesFile, []byte(contentTwo))
-			Expect(err).ToNot(BeNil())
-
-			userlib.DebugMsg("Checking that Doris can still append to the file.")
-			err = doris.AppendToFile(dorisFile, []byte(contentTwo))
-			Expect(err).To(BeNil())
-
-			data, err = doris.LoadFile(dorisFile)
-			Expect(err).To(BeNil())
-			Expect(data).To(Equal([]byte(contentOne + contentTwo + contentThree + contentOne + contentTwo)))
-		})
 		
 		// Specify("Test: Access from different log ins at once", func() {
 		// 	userlib.DebugMsg("Initializing user Alice.")
