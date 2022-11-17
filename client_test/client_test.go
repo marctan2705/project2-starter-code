@@ -599,6 +599,65 @@ var _ = Describe("Client Tests", func() {
 			Expect(err).To(BeNil())
 			Expect(content3).To(Equal(content))
 		})
+		Specify("Test: Non-owner cannot revoke access", func() {
+			userlib.DebugMsg("Initializing users Alice, Bob, and Charles.")
+			alice, err = client.InitUser("alice", defaultPassword)
+			Expect(err).To(BeNil())
+
+			bob, err = client.InitUser("bob", defaultPassword)
+			Expect(err).To(BeNil())
+
+			charlie, err := client.InitUser("charlie", defaultPassword)
+			Expect(err).To(BeNil())
+
+			userlib.DebugMsg("alice storing file %s with content: %s", "file", contentOne)
+			err = alice.StoreFile("file", []byte(contentOne))
+			Expect(err).To(BeNil())
+
+			userlib.DebugMsg("alice creating invite for Bob.")
+			invite, err := alice.CreateInvitation("file", "bob")
+			Expect(err).To(BeNil())
+
+			userlib.DebugMsg("Bob accepting invite from Alice under filename %s.", "file2")
+			err = bob.AcceptInvitation("alice", invite, "file2")
+			Expect(err).To(BeNil())
+
+			userlib.DebugMsg("Bob creating invite for Charlie.")
+			invite2, err := bob.CreateInvitation("file2", "charlie")
+			Expect(err).To(BeNil())
+
+			userlib.DebugMsg("Charlie accepting invite from Bob under filename %s.", "file3")
+			err = charlie.AcceptInvitation("bob", invite2, "file3")
+			Expect(err).To(BeNil())
+
+			userlib.DebugMsg("Bob revoking Charles's access from %s.", aliceFile)
+			err = bob.RevokeAccess("file2", "charles")
+			Expect(err).ToNot(BeNil())
+		})
+
+		Specify("Test: Cannot accept an invitation that is not yours", func() {
+			userlib.DebugMsg("Initializing users Alice, Bob, and Charles.")
+			alice, err = client.InitUser("alice", defaultPassword)
+			Expect(err).To(BeNil())
+
+			bob, err = client.InitUser("bob", defaultPassword)
+			Expect(err).To(BeNil())
+
+			charles, err = client.InitUser("charles", defaultPassword)
+			Expect(err).To(BeNil())
+
+			userlib.DebugMsg("alice storing file %s with content: %s", "file", contentOne)
+			err = alice.StoreFile("file", []byte(contentOne))
+			Expect(err).To(BeNil())
+
+			userlib.DebugMsg("alice creating invite for Bob.")
+			invite, err := alice.CreateInvitation("file", "bob")
+			Expect(err).To(BeNil())
+			
+			err = charles.AcceptInvitation("alice", invite, "file")
+			Expect(err).ToNot(BeNil())
+
+		})
 		// Specify("Test: Access from different log ins at once", func() {
 		// 	userlib.DebugMsg("Initializing user Alice.")
 		// 	alice, err := client.InitUser("alice", defaultPassword)
