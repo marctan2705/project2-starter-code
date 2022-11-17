@@ -743,7 +743,8 @@ func (userdata *User) CreateInvitation(filename string, recipientUsername string
 	if err != nil {
 		return uuid.Nil, err
 	}
-	invitationPtr = uuid.New()
+	invitationPtr, err = uuid.FromBytes(userlib.Hash([]byte(hex.EncodeToString(userlib.Hash([]byte(filename))) + hex.EncodeToString(userlib.Hash([]byte(recipientUsername)))))[:16])
+	if err != nil{return uuid.Nil, err}
 	// userlib.KeystoreSet(username+" PKEEncKey", PKEEncKey)
 	// userlib.KeystoreSet(username+" DSVerifyKey", DSVerifyKey)
 	// encrypt with recipient's public key, sign with inviter's private key
@@ -789,6 +790,7 @@ func (userdata *User) AcceptInvitation(senderUsername string, invitationPtr uuid
 	if len(invitationEncrypted) < 256 {
 		return errors.New("length of return value too short, probably tampered with")
 	}
+	userlib.DebugMsg("here")
 	// userlib.KeystoreSet(username+" PKEEncKey", PKEEncKey)
 	// userlib.KeystoreSet(username+" DSVerifyKey", DSVerifyKey)
 	// encrypt with recipient's public key, sign with inviter's private key
@@ -797,6 +799,7 @@ func (userdata *User) AcceptInvitation(senderUsername string, invitationPtr uuid
 	if !ok {
 		return errors.New("can't find sender's public ds key in keystore")
 	}
+
 	invitationDecrypted, err := publicKeyDecrypt(deckey, verifykey, invitationEncrypted[256:], invitationEncrypted[:256])
 	if err != nil {
 		return err
@@ -806,7 +809,6 @@ func (userdata *User) AcceptInvitation(senderUsername string, invitationPtr uuid
 	if err != nil {
 		return err
 	}
-
 	// check if invitation is still valid (i.e. keystruct still exists)
 	keyStructEncrypted, ok := userlib.DatastoreGet(invitation.KeyStructUUID)
 	if !ok {
@@ -815,6 +817,7 @@ func (userdata *User) AcceptInvitation(senderUsername string, invitationPtr uuid
 	if len(keyStructEncrypted) < 64 {
 		return errors.New("length of return value too short, probably tampered with")
 	}
+	userlib.DebugMsg("here3")
 
 	// update invitee's AC to reflect the new UUID/key of the shared file's keystruct
 	AC.KeyStructUUIDMap[filename] = invitation.KeyStructUUID
@@ -823,12 +826,19 @@ func (userdata *User) AcceptInvitation(senderUsername string, invitationPtr uuid
 	if err != nil {
 		return err
 	}
+	userlib.DebugMsg("here5")
+
 	ACEncrypted := macandencrypt(userdata.ACKey, ACJSON)
 	userlib.DatastoreSet(ACUUID, ACEncrypted)
 	return nil
 }
 
 func (userdata *User) RevokeAccess(filename string, recipientUsername string) error {
+	// delete invitation
+	invitationPtr, err := uuid.FromBytes([]byte(hex.EncodeToString(userlib.Hash([]byte(filename))) + hex.EncodeToString(userlib.Hash([]byte(recipientUsername))))[:16])
+	if err != nil{return err}
+	userlib.DatastoreDelete(invitationPtr)
+	
 	// fetch and decrypt user's AccessControl
 	ACUUID := userdata.AccessControlUUID
 	ACenc, ok := userlib.DatastoreGet(ACUUID)
@@ -902,6 +912,7 @@ func (userdata *User) RevokeAccess(filename string, recipientUsername string) er
 	userlib.DatastoreSet(keyStructUUID, filenameKeyStructto)
 
 	userlist := make([]string, 0)
+	debug := false
 	for index, a := range AC.InvitationNameMap[filename] {
 		// filenameusername := filename + a
 		// filenameusername := filename + "🍆" + a
@@ -909,8 +920,9 @@ func (userdata *User) RevokeAccess(filename string, recipientUsername string) er
 		userlib.DebugMsg("usernamefilename:", filenameusername)
 		fmt.Println("a:", a, "recipientUsername:", recipientUsername)
 		if a == recipientUsername {
-			userlib.DebugMsg("WOOOO", a)
+			// userlib.DebugMsg("WOOOO", a)
 			userlib.DatastoreDelete(AC.InvitationAccessMap[filenameusername])
+			debug = true
 			// userlib.DebugMsg(a)
 		} else {
 			userlist = append(userlist, a)
@@ -940,6 +952,9 @@ func (userdata *User) RevokeAccess(filename string, recipientUsername string) er
 			ksuto := macandencrypt(AC.InvitationKeyMap[filenameusername], ksumarsh)
 			userlib.DatastoreSet(AC.InvitationAccessMap[filenameusername], ksuto)
 		}
+	}
+	if !debug{
+		return errors.New("trying to revoke non existing user")
 	}
 	AC.InvitationNameMap[filename] = userlist
 	ACmarsh, err := json.Marshal(AC)
