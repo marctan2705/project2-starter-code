@@ -253,6 +253,15 @@ var _ = Describe("Client Tests", func() {
 			// print(alicedata)
 			Expect(err).ToNot(BeNil())
 		})
+		Specify("Basic Test: load file that doesnt exist", func() {
+			userlib.DebugMsg("Inititalising Alice")
+			alice, err = client.InitUser("Alice", "12345678")
+			// print(alicedata)
+			Expect(err).To(BeNil())
+			filecontent, err := alice.LoadFile("file")
+			Expect(filecontent).To(BeNil())
+			Expect(err).ToNot(BeNil())
+		})
 		Specify("Basic Test: Testing Case Sensitive Functionality", func() {
 			userlib.DebugMsg("Inititalising alice")
 			alice, err = client.InitUser("alice", "12345678")
