@@ -725,6 +725,27 @@ var _ = Describe("Client Tests", func() {
 			Expect(err).ToNot(BeNil())
 
 		})
+
+		Specify("Test: Cannot accept a invitation that is not there", func() {
+			userlib.DebugMsg("Initializing users Alice, Bob.")
+			alice, err = client.InitUser("alice", defaultPassword)
+			Expect(err).To(BeNil())
+
+			bob, err = client.InitUser("bob", defaultPassword)
+			Expect(err).To(BeNil())
+
+			userlib.DebugMsg("alice storing file %s with content: %s", "file", contentOne)
+			err = alice.StoreFile("file", []byte(contentOne))
+			Expect(err).To(BeNil())
+
+			userlib.DebugMsg("alice creating invite for Bob.")
+			invite, err := alice.CreateInvitation("file", "bob")
+			Expect(err).To(BeNil())
+			Expect(invite).ToNot(BeNil())
+			err = bob.AcceptInvitation("bob", uuid.New(), "file")
+			Expect(err).ToNot(BeNil())
+
+		})
 		
 		// Specify("Test: Access from different log ins at once", func() {
 		// 	userlib.DebugMsg("Initializing user Alice.")
