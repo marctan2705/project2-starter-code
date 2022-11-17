@@ -8,7 +8,7 @@ import (
 	// about unused imports.
 	_ "encoding/hex"
 	_ "errors"
-	"strconv"
+	_"strconv"
 	_ "strings"
 	"testing"
 
