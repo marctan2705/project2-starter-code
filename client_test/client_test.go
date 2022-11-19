@@ -106,6 +106,8 @@ var _ = Describe("Client Tests", func() {
 			Expect(err).To(BeNil())
 		})
 
+
+
 		Specify("Basic Test: Testing Single User Store/Load/Append.", func() {
 			userlib.DebugMsg("Initializing user Alice.")
 			alice, err = client.InitUser("alice", defaultPassword)
@@ -997,6 +999,24 @@ var _ = Describe("Client Tests", func() {
 		// 	alice, err = client.GetUser("alice", defaultPassword)
 		// 	Expect(err).ToNot(BeNil())
 		// })
+
+		Specify("Basic Test: Tampering with User.", func() {
+			userlib.DebugMsg("Initializing user Alice.")
+			alice, err = client.InitUser("alice", defaultPassword)
+			Expect(err).To(BeNil())
+
+			userlib.DebugMsg("Getting user Alice.")
+			aliceLaptop, err = client.GetUser("alice", defaultPassword)
+			Expect(err).To(BeNil())
+
+			dataStoreMap := userlib.DatastoreGetMap()
+			for UUID := range dataStoreMap {
+				userlib.DatastoreSet(UUID, []byte("eve's malicious data"))
+			}
+			aliceupdated, err :=client.GetUser("alice", defaultPassword)
+			Expect(aliceupdated).To(BeNil())
+			Expect(err).ToNot(BeNil())
+		})
 
 	})
 })
