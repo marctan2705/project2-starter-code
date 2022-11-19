@@ -8,7 +8,7 @@ import (
 	// about unused imports.
 	_ "encoding/hex"
 	_ "errors"
-	_ "strconv"
+	"strconv"
 	_ "strings"
 	"testing"
 
@@ -537,6 +537,39 @@ var _ = Describe("Client Tests", func() {
 					err = alice.AppendToFile("file", []byte("yo"))
 					Expect(err).To(BeNil())
 				}})
+			Expect(BW2 - BW1 == BW3 - BW2).To(BeTrue())
+			data, err := alice.LoadFile("file")
+			print(data)
+			Expect(err).To(BeNil())
+		})
+
+		Specify("Basic Test #11: Upload a ton of keys and it should still work", func() {
+			userlib.DebugMsg("Initializing Users Alice ")
+			alice, err := client.InitUser("Alice", defaultPassword)
+			Expect(err).To(BeNil())
+			Expect(alice).ToNot(BeNil())
+			alice.StoreFile("file", []byte("yo"))
+			userlib.DebugMsg("Store files ")
+			BW1 := measureBandwidth(func(){
+			for i := 1; i < 3; i++ {
+				// userlib.DebugMsg(strconv.Itoa(i))
+				err = alice.StoreFile(strconv.Itoa(i), []byte("yo"))
+				Expect(err).To(BeNil())
+			}})
+			BW2 := measureBandwidth(func(){
+				for i := 3; i < 5; i++ {
+					// userlib.DebugMsg(strconv.Itoa(i))
+					err = alice.StoreFile(strconv.Itoa(i), []byte("yo"))
+					Expect(err).To(BeNil())
+				}})
+			BW3 := measureBandwidth(func(){
+				for i := 5; i < 7; i++ {
+					// userlib.DebugMsg(strconv.Itoa(i))
+					err = alice.StoreFile(strconv.Itoa(i), []byte("yo"))
+					Expect(err).To(BeNil())
+				}})
+			// userlib.DebugMsg(strconv.Itoa(BW3 - BW2))
+			// userlib.DebugMsg(strconv.Itoa(BW2 - BW1))
 			Expect(BW2 - BW1 == BW3 - BW2).To(BeTrue())
 			data, err := alice.LoadFile("file")
 			print(data)
