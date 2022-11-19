@@ -45,6 +45,15 @@ const contentThree = "cryptocurrency!"
 // a tree-like structure.
 // ================================================
 
+func measureBandwidth(probe func()) (bandwidth int) {
+	before := userlib.DatastoreGetBandwidth()
+	probe()
+	after := userlib.DatastoreGetBandwidth()
+	return after - before
+ }
+ 
+
+
 var _ = Describe("Client Tests", func() {
 
 	// A few user declarations that may be used for testing. Remember to initialize these before you
@@ -503,22 +512,36 @@ var _ = Describe("Client Tests", func() {
 		// 		Expect(err).To(BeNil())
 		// 	}
 		// })
-		// Specify("Basic Test #11: Upload a ton of keys and it should still work", func() {
-		// 	userlib.DebugMsg("Initializing Users Alice ")
-		// 	alice, err := client.InitUser("Alice", defaultPassword)
-		// 	Expect(err).To(BeNil())
-		// 	Expect(alice).ToNot(BeNil())
-		// 	alice.StoreFile("file", []byte("yo"))
-		// 	userlib.DebugMsg("Store files ")
-		// 	for i := 1; i < 1000; i++ {
-		// 		// userlib.DebugMsg(strconv.Itoa(i))
-		// 		err = alice.AppendToFile("file", []byte("yo"))
-		// 		Expect(err).To(BeNil())
-		// 	}
-		// 	data, err := alice.LoadFile("file")
-		// 	print(data)
-		// 	Expect(err).To(BeNil())
-		// })
+		Specify("Basic Test #11: Upload a ton of keys and it should still work", func() {
+			userlib.DebugMsg("Initializing Users Alice ")
+			alice, err := client.InitUser("Alice", defaultPassword)
+			Expect(err).To(BeNil())
+			Expect(alice).ToNot(BeNil())
+			alice.StoreFile("file", []byte("yo"))
+			userlib.DebugMsg("Store files ")
+			BW1 := measureBandwidth(func(){
+			for i := 1; i < 500; i++ {
+				// userlib.DebugMsg(strconv.Itoa(i))
+				err = alice.AppendToFile("file", []byte("yo"))
+				Expect(err).To(BeNil())
+			}})
+			BW2 := measureBandwidth(func(){
+				for i := 1; i < 1000; i++ {
+					// userlib.DebugMsg(strconv.Itoa(i))
+					err = alice.AppendToFile("file", []byte("yo"))
+					Expect(err).To(BeNil())
+				}})
+			BW3 := measureBandwidth(func(){
+				for i := 1; i < 1500; i++ {
+					// userlib.DebugMsg(strconv.Itoa(i))
+					err = alice.AppendToFile("file", []byte("yo"))
+					Expect(err).To(BeNil())
+				}})
+			Expect(BW2 - BW1 == BW3 - BW2).To(BeTrue())
+			data, err := alice.LoadFile("file")
+			print(data)
+			Expect(err).To(BeNil())
+		})
 
 		Specify("Test: Changing FileContent and Keystruct, checking that LoadFile fails.", func() {
 			userlib.DebugMsg("Initializing user Alice.")
