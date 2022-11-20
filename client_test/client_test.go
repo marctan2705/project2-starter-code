@@ -1017,6 +1017,28 @@ var _ = Describe("Client Tests", func() {
 			Expect(aliceupdated).To(BeNil())
 			Expect(err).ToNot(BeNil())
 		})
+		Specify("Basic Test: Revoke cannot append.", func() {
+			userlib.DebugMsg("Initializing user Alice.")
+			alice, err = client.InitUser("alice", defaultPassword)
+			Expect(err).To(BeNil())
+
+			userlib.DebugMsg("Initialise user Bob.")
+			bob, err = client.InitUser("bob", defaultPassword)
+			Expect(err).To(BeNil())
+
+			err = alice.StoreFile("file", []byte(contentOne))
+			Expect(err).To(BeNil())
+			userlib.DebugMsg("alice creating invite for Bob.")
+			invite, err := alice.CreateInvitation("file", "bob")
+			Expect(err).To(BeNil())
+			Expect(invite).ToNot(BeNil())
+			err = alice.RevokeAccess("file", "bob")
+			Expect(err).To(BeNil())
+			err = bob.AppendToFile("file", []byte(contentOne))
+			Expect(err).ToNot(BeNil())
+
+		})
+		
 
 	})
 })
